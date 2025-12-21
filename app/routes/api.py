@@ -20,6 +20,7 @@ from app.schemas import (
     QueryRequest,
     Thing,
 )
+from app.ingest import ingest_text
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -275,6 +276,36 @@ def chunks_query(name: str, payload: QueryRequest):
             "distance": dists[i] if i < len(dists) else None,
         })
     return hits
+
+
+# ---------------- Ingest ----------------
+
+@router.post("/ingest")
+def ingest_api(payload: Dict[str, Any]):
+    collection = payload.get("collection")
+    text = payload.get("text") or ""
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="text is required")
+
+    source_file = payload.get("source_file")
+    source_section = payload.get("source_section")
+
+    result = ingest_text(text=text, collection=collection, source_file=source_file, source_section=source_section)
+
+    stored_things = [upsert_thing(t) for t in result["things"]]
+    stored_connections = [upsert_connection(c) for c in result["connections"]]
+
+    chunks = result["chunks"]
+    if collection and chunks:
+        chunks_payload = ChunksUpsert(chunks=chunks)
+        chunks_upsert(collection, chunks_payload)
+
+    return {
+        "ok": True,
+        "things": [t.model_dump(mode="json") for t in stored_things],
+        "connections": [c.model_dump(mode="json") for c in stored_connections],
+        "chunks": [c.model_dump(mode="json") for c in chunks],
+    }
 
 
 # -----------------------------------------------------------------------------
