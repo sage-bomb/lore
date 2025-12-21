@@ -7,23 +7,24 @@
 
     <div class="row">
       <input id="chunkId" type="text" placeholder="chunk.character.sahla.summary"/>
-      <select id="docKind">
-        <option value="record_chunk">record_chunk</option>
-        <option value="chapter_chunk">chapter_chunk</option>
-        <option value="rule_chunk">rule_chunk</option>
-        <option value="edge_chunk">edge_chunk</option>
-      </select>
-      <select id="canonStatus">
-        <option value="draft">draft</option>
-        <option value="canon">canon</option>
-        <option value="deprecated">deprecated</option>
-        <option value="disputed">disputed</option>
+      <select id="chunkKind">
+        <option value="thing_summary">thing_summary</option>
+        <option value="thing_notes">thing_notes</option>
+        <option value="connection_note">connection_note</option>
+        <option value="chapter_text">chapter_text</option>
+        <option value="scene_text">scene_text</option>
+        <option value="rule_text">rule_text</option>
+        <option value="misc">misc</option>
       </select>
     </div>
 
     <div class="row">
-      <input id="recordType" type="text" placeholder="record_type (e.g. character, place, chapter)"/>
-      <input id="recordId" type="text" placeholder="record_id (e.g. character.sahla)"/>
+      <input id="thingId" type="text" placeholder="thing_id (e.g. character.sahla)"/>
+      <input id="thingType" type="text" placeholder="thing_type (e.g. character, place, chapter)"/>
+    </div>
+
+    <div class="row">
+      <input id="edgeId" type="text" placeholder="edge_id (if this chunk is about a connection)"/>
     </div>
 
     <textarea id="chunkText" rows="6" placeholder="Embedding text (summary, chapter chunk, rule statement, etc.)"></textarea>
@@ -42,6 +43,7 @@
       <summary>Chapter-style filters (optional)</summary>
       <div class="row mt">
         <input id="chapterNumber" type="number" placeholder="chapter_number"/>
+        <input id="sceneId" type="text" placeholder="scene_id"/>
         <input id="pov" type="text" placeholder="pov"/>
         <input id="locationId" type="text" placeholder="location_id"/>
       </div>
@@ -68,17 +70,44 @@
       <input id="queryText" type="text" placeholder="e.g. Sahla's birthplace"/>
       <input id="topK" type="number" min="1" max="50" value="8"/>
 
-      <select id="queryDocKind" multiple size="4" title="doc_kinds (optional)">
-        <option value="record_chunk">record_chunk</option>
-        <option value="chapter_chunk">chapter_chunk</option>
-        <option value="rule_chunk">rule_chunk</option>
-        <option value="edge_chunk">edge_chunk</option>
+      <select id="queryChunkKind" multiple size="6" title="chunk_kinds (optional)">
+        <option value="thing_summary">thing_summary</option>
+        <option value="thing_notes">thing_notes</option>
+        <option value="connection_note">connection_note</option>
+        <option value="chapter_text">chapter_text</option>
+        <option value="scene_text">scene_text</option>
+        <option value="rule_text">rule_text</option>
+        <option value="misc">misc</option>
       </select>
 
-      <label class="row" style="gap:8px;align-items:center;">
-        <input id="canonOnly" type="checkbox"/>
-        <span>canon only</span>
-      </label>
+      <div class="column" style="gap:8px;">
+        <input id="queryThingId" type="text" placeholder="Filter by thing_id (optional)"/>
+        <input id="queryTags" type="text" placeholder="Filter by tags (comma-separated)"/>
+      </div>
+
+      <div class="column" style="gap:8px;">
+        <label>thing_types</label>
+        <select id="queryThingType" multiple size="6" title="thing_types (optional)">
+          <option value="character">character</option>
+          <option value="place">place</option>
+          <option value="faction">faction</option>
+          <option value="culture">culture</option>
+          <option value="race">race</option>
+          <option value="deity">deity</option>
+          <option value="artifact">artifact</option>
+          <option value="creature">creature</option>
+          <option value="magic_concept">magic_concept</option>
+          <option value="ritual">ritual</option>
+          <option value="currency">currency</option>
+          <option value="term">term</option>
+          <option value="event">event</option>
+          <option value="chapter">chapter</option>
+          <option value="scene">scene</option>
+          <option value="lore_entry">lore_entry</option>
+          <option value="style_rule">style_rule</option>
+          <option value="other">other</option>
+        </select>
+      </div>
 
       <button onclick="queryChunks('{{ collection }}')">Search</button>
     </div>

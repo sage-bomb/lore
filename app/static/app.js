@@ -66,13 +66,14 @@ async function upsertChunk(collection) {
     chunks: [{
       chunk_id,
       text,
-      doc_kind: val("docKind") || "record_chunk",
-      canon_status: val("canonStatus") || "draft",
-      record_type: val("recordType").trim(),
-      record_id: val("recordId").trim(),
+      chunk_kind: val("chunkKind") || "thing_summary",
+      thing_id: val("thingId").trim() || null,
+      thing_type: val("thingType").trim() || null,
+      edge_id: val("edgeId").trim() || null,
       source_file: val("sourceFile").trim() || null,
       source_section: val("sourceSection").trim() || null,
       chapter_number: parseOptionalInt(val("chapterNumber")),
+      scene_id: val("sceneId").trim() || null,
       pov: val("pov").trim() || null,
       location_id: val("locationId").trim() || null,
       tags: splitCsv(val("tags")),
@@ -85,12 +86,6 @@ async function upsertChunk(collection) {
     payload.chunks[0].extra = parseJsonObject(val("extraJson"));
   } catch (e) {
     msg.textContent = `Extra JSON error: ${e.message}`;
-    return;
-  }
-
-  // record_type/record_id are required by schema
-  if (!payload.chunks[0].record_type || !payload.chunks[0].record_id) {
-    msg.textContent = "record_type and record_id are required (e.g. character + character.sahla).";
     return;
   }
 
@@ -112,12 +107,16 @@ async function queryChunks(collection) {
   const results = qs("results");
   results.innerHTML = "";
 
-  const selectedKinds = Array.from(qs("queryDocKind")?.selectedOptions || []).map(o => o.value);
+  const selectedKinds = Array.from(qs("queryChunkKind")?.selectedOptions || []).map(o => o.value);
+  const selectedThingTypes = Array.from(qs("queryThingType")?.selectedOptions || []).map(o => o.value);
+  const queryTags = splitCsv(val("queryTags"));
   const payload = {
     query_text: val("queryText").trim(),
     n_results: parseOptionalInt(val("topK")) || 8,
-    doc_kinds: selectedKinds.length ? selectedKinds : null,
-    canon_only: !!qs("canonOnly")?.checked
+    chunk_kinds: selectedKinds.length ? selectedKinds : null,
+    thing_types: selectedThingTypes.length ? selectedThingTypes : null,
+    thing_id: val("queryThingId").trim() || null,
+    tags: queryTags.length ? queryTags : null
   };
 
   if (!payload.query_text) {
