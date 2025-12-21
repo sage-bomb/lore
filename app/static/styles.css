@@ -1,0 +1,17 @@
+app/static/styles.css
+:root { --border:#ddd; --bg:#fff; --muted:#666; }
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #fafafa; }
+.header { padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--bg); display:flex; justify-content:space-between; align-items:center; }
+.brand a { color: inherit; text-decoration: none; font-weight: 700; }
+.container { max-width: 980px; margin: 0 auto; padding: 18px; }
+.card { background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin: 14px 0; }
+.row { display:flex; gap: 10px; align-items:center; flex-wrap: wrap; }
+.row.space { justify-content: space-between; }
+input, textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+button { padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: #fff; cursor: pointer; }
+button:hover { filter: brightness(0.98); }
+.muted { color: var(--muted); font-size: 0.95em; margin-top: 6px; }
+.item { border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-top: 10px; background: #fff; }
+pre { white-space: pre-wrap; margin: 10px 0 0; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 8px; }
+ul { margin: 8px 0 0; }

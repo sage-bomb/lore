@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Collection: <code>{{ collection }}</code></h1>
+
+  <section class="card">
+    <h2>Add / Upsert chunk</h2>
+
+    <div class="row">
+      <input id="chunkId" type="text" placeholder="chunk.character.sahla.summary"/>
+      <select id="docKind">
+        <option value="record_chunk">record_chunk</option>
+        <option value="chapter_chunk">chapter_chunk</option>
+        <option value="rule_chunk">rule_chunk</option>
+        <option value="edge_chunk">edge_chunk</option>
+      </select>
+      <select id="canonStatus">
+        <option value="draft">draft</option>
+        <option value="canon">canon</option>
+        <option value="deprecated">deprecated</option>
+        <option value="disputed">disputed</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <input id="recordType" type="text" placeholder="record_type (e.g. character, place, chapter)"/>
+      <input id="recordId" type="text" placeholder="record_id (e.g. character.sahla)"/>
+    </div>
+
+    <textarea id="chunkText" rows="6" placeholder="Embedding text (summary, chapter chunk, rule statement, etc.)"></textarea>
+
+    <div class="row">
+      <input id="tags" type="text" placeholder="tags (comma-separated)"/>
+      <input id="entityIds" type="text" placeholder="entity_ids (comma-separated)"/>
+    </div>
+
+    <div class="row">
+      <input id="sourceFile" type="text" placeholder="source_file (optional)"/>
+      <input id="sourceSection" type="text" placeholder="source_section (optional)"/>
+    </div>
+
+    <details class="mt">
+      <summary>Chapter-style filters (optional)</summary>
+      <div class="row mt">
+        <input id="chapterNumber" type="number" placeholder="chapter_number"/>
+        <input id="pov" type="text" placeholder="pov"/>
+        <input id="locationId" type="text" placeholder="location_id"/>
+      </div>
+    </details>
+
+    <details class="mt">
+      <summary>Extra metadata (optional JSON object)</summary>
+      <textarea id="extraJson" rows="4" placeholder='{"draft_state":"revise","scene_id":"scene.12"}'></textarea>
+    </details>
+
+    <div class="row">
+      <button onclick="upsertChunk('{{ collection }}')">Upsert chunk</button>
+      <div id="upsertMsg" class="muted"></div>
+    </div>
+
+    <div class="muted">
+      Tip: keep metadata flat so filtering stays reliable.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Search</h2>
+    <div class="row">
+      <input id="queryText" type="text" placeholder="e.g. Sahla's birthplace"/>
+      <input id="topK" type="number" min="1" max="50" value="8"/>
+
+      <select id="queryDocKind" multiple size="4" title="doc_kinds (optional)">
+        <option value="record_chunk">record_chunk</option>
+        <option value="chapter_chunk">chapter_chunk</option>
+        <option value="rule_chunk">rule_chunk</option>
+        <option value="edge_chunk">edge_chunk</option>
+      </select>
+
+      <label class="row" style="gap:8px;align-items:center;">
+        <input id="canonOnly" type="checkbox"/>
+        <span>canon only</span>
+      </label>
+
+      <button onclick="queryChunks('{{ collection }}')">Search</button>
+    </div>
+    <div id="results"></div>
+  </section>
+
+  <section class="card">
+    <h2>Browse</h2>
+    <div class="row">
+      <input id="browseLimit" type="number" min="1" max="200" value="25"/>
+      <button onclick="loadChunks('{{ collection }}')">Refresh</button>
+      <div id="browseMsg" class="muted"></div>
+    </div>
+    <div id="docs"></div>
+  </section>
+{% endblock %}

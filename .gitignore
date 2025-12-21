@@ -1,0 +1,82 @@
+# --------------------
+# Python
+# --------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --------------------
+# Virtual Environments
+# --------------------
+.env
+.env.*
+venv/
+.venv/
+ENV/
+env/
+pip-wheel-metadata/
+
+# --------------------
+# ChromaDB
+# --------------------
+chroma_db/
+chromadb/
+chroma/
+*.chroma
+*.duckdb
+*.parquet
+
+# --------------------
+# Environment & Secrets
+# --------------------
+*.env
+*.key
+*.pem
+*.secrets
+secrets/
+.env.local
+.env.production
+
+# --------------------
+# Logs & Runtime
+# --------------------
+logs/
+*.log
+*.pid
+
+# --------------------
+# OS / Editor
+# --------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --------------------
+# Web / Build Artifacts
+# --------------------
+node_modules/
+dist/
+out/
+
+# --------------------
+# Temporary / Scratch
+# --------------------
+tmp/
+temp/
+.cache/
+

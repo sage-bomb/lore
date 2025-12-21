@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Collections</h1>
+
+  <section class="card">
+    <h2>Create a collection</h2>
+    <div class="row">
+      <input id="newCollectionName" type="text" placeholder="series_bible" />
+      <button onclick="createCollection()">Create</button>
+    </div>
+    <div id="createCollectionMsg" class="muted"></div>
+  </section>
+
+  <section class="card">
+    <h2>Open an existing collection</h2>
+    {% if collections %}
+      <ul>
+        {% for c in collections %}
+          <li><a href="/c/{{ c }}">{{ c }}</a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="muted">No collections yet. Create one above.</div>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>What goes in a collection now?</h2>
+    <div class="muted">
+      Collections store <strong>chunks</strong> (embedding units) rather than raw “documents”.
+      Chunks can represent record cards, chapter text, rules, or relationship edges.
+    </div>
+  </section>
+{% endblock %}
