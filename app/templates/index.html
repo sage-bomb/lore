@@ -1,34 +1,74 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>Collections</h1>
-
-  <section class="card">
-    <h2>Create a collection</h2>
-    <div class="row">
-      <input id="newCollectionName" type="text" placeholder="series_bible" />
-      <button onclick="createCollection()">Create</button>
+  <section class="hero">
+    <h1>Build a living lore workspace</h1>
+    <p>Organize chapters, characters, rules, and connections in focused collections. Add chunks, search across them, and keep your universe coherent.</p>
+    <div class="pill-row" style="margin-top:12px;">
+      <span class="pill">Fast create</span>
+      <span class="pill">Chunk-first search</span>
+      <span class="pill">Metadata friendly</span>
     </div>
-    <div id="createCollectionMsg" class="muted"></div>
+  </section>
+
+  <section class="section-columns">
+    <div class="card">
+      <div class="section-title">
+        <h2>Create a collection</h2>
+        <span class="hint">Name it after your world, project, or season.</span>
+      </div>
+      <div class="stack">
+        <input id="newCollectionName" type="text" placeholder="e.g. astral_archives or season_02" />
+        <div class="row">
+          <button onclick="createCollection()">Create collection</button>
+          <div id="createCollectionMsg" class="muted"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        <h2>Open an existing one</h2>
+        <span class="hint">Jump back into a workspace.</span>
+      </div>
+      {% if collections %}
+        <div class="card-grid">
+          {% for c in collections %}
+            <a class="card" style="text-decoration:none; color:inherit; padding:14px;" href="/c/{{ c }}">
+              <div class="small-label">Collection</div>
+              <div style="font-weight:700; font-size:1.05rem;">{{ c }}</div>
+              <div class="muted" style="margin-top:6px;">Open &amp; manage chunks</div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="muted">No collections yet. Create one to get started.</div>
+      {% endif %}
+    </div>
   </section>
 
   <section class="card">
-    <h2>Open an existing collection</h2>
-    {% if collections %}
-      <ul>
-        {% for c in collections %}
-          <li><a href="/c/{{ c }}">{{ c }}</a></li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <div class="muted">No collections yet. Create one above.</div>
-    {% endif %}
-  </section>
-
-  <section class="card">
-    <h2>What goes in a collection now?</h2>
-    <div class="muted">
-      Collections store <strong>chunks</strong> (embedding units) rather than raw “documents”.
-      Chunks can represent record cards, chapter text, rules, or relationship edges.
+    <div class="section-title">
+      <h2>How collections work</h2>
+      <span class="hint">Chunk-based by design.</span>
+    </div>
+    <div class="stack">
+      <div class="muted">
+        Collections store <strong>chunks</strong> (embedding units) rather than raw documents. Each chunk is a focused idea: a character summary, a scene excerpt, a rule, or a relationship edge.
+      </div>
+      <div class="card-grid">
+        <div class="item">
+          <div class="small-label">Story building</div>
+          <div class="muted">Keep chapters and scenes tidy with chunked text.</div>
+        </div>
+        <div class="item">
+          <div class="small-label">Knowledge graph</div>
+          <div class="muted">Tag things, link edges, and filter by metadata.</div>
+        </div>
+        <div class="item">
+          <div class="small-label">Searchable memory</div>
+          <div class="muted">Semantic search across everything you’ve stored.</div>
+        </div>
+      </div>
     </div>
   </section>
 {% endblock %}

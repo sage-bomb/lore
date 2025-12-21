@@ -1,11 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>Collection: <code>{{ collection }}</code></h1>
+  <section class="hero">
+    <div class="section-title">
+      <h1>{{ collection }}</h1>
+      <div class="pill-row">
+        <span class="pill">Add chunks</span>
+        <span class="pill">Search &amp; filter</span>
+        <span class="pill">Browse quickly</span>
+      </div>
+    </div>
+    <p>Keep this collection feeling like a workspace instead of a database. Add or upsert chunks, search semantically, and browse what’s already here.</p>
+  </section>
 
   <section class="card">
-    <h2>Add / Upsert chunk</h2>
+    <div class="section-title">
+      <h2>Add or update a chunk</h2>
+      <span class="hint">Give it a clear id, pick a kind, and drop in text.</span>
+    </div>
 
-    <div class="row">
+    <div class="grid" style="grid-template-columns: 1.4fr 0.6fr; align-items: center;">
       <input id="chunkId" type="text" placeholder="chunk.character.sahla.summary"/>
       <select id="chunkKind">
         <option value="thing_summary">thing_summary</option>
@@ -18,30 +31,51 @@
       </select>
     </div>
 
-    <div class="row">
-      <input id="thingId" type="text" placeholder="thing_id (e.g. character.sahla)"/>
-      <input id="thingType" type="text" placeholder="thing_type (e.g. character, place, chapter)"/>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+      <div class="stack">
+        <label>Thing</label>
+        <div class="row">
+          <input id="thingId" type="text" placeholder="thing_id (e.g. character.sahla)"/>
+          <input id="thingType" type="text" placeholder="thing_type (e.g. character)"/>
+        </div>
+      </div>
+      <div class="stack">
+        <label>Edge / connection</label>
+        <input id="edgeId" type="text" placeholder="edge_id (if this chunk is about a connection)"/>
+      </div>
     </div>
 
-    <div class="row">
-      <input id="edgeId" type="text" placeholder="edge_id (if this chunk is about a connection)"/>
+    <div class="stack" style="margin-top:10px;">
+      <label>Chunk text</label>
+      <textarea id="chunkText" rows="6" placeholder="Summary, chapter excerpt, rule statement, etc."></textarea>
+      <div class="input-note">Keep it concise and focused—short chunks search better.</div>
     </div>
 
-    <textarea id="chunkText" rows="6" placeholder="Embedding text (summary, chapter chunk, rule statement, etc.)"></textarea>
-
-    <div class="row">
-      <input id="tags" type="text" placeholder="tags (comma-separated)"/>
-      <input id="entityIds" type="text" placeholder="entity_ids (comma-separated)"/>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top:12px;">
+      <div class="stack">
+        <label>Tags</label>
+        <input id="tags" type="text" placeholder="tags (comma-separated)"/>
+      </div>
+      <div class="stack">
+        <label>Entity ids</label>
+        <input id="entityIds" type="text" placeholder="entity_ids (comma-separated)"/>
+      </div>
     </div>
 
-    <div class="row">
-      <input id="sourceFile" type="text" placeholder="source_file (optional)"/>
-      <input id="sourceSection" type="text" placeholder="source_section (optional)"/>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top:12px;">
+      <div class="stack">
+        <label>Source</label>
+        <input id="sourceFile" type="text" placeholder="source_file (optional)"/>
+      </div>
+      <div class="stack">
+        <label>Section</label>
+        <input id="sourceSection" type="text" placeholder="source_section (optional)"/>
+      </div>
     </div>
 
-    <details class="mt">
+    <details class="mt" style="margin-top:12px;">
       <summary>Chapter-style filters (optional)</summary>
-      <div class="row mt">
+      <div class="grid" style="margin-top:12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
         <input id="chapterNumber" type="number" placeholder="chapter_number"/>
         <input id="sceneId" type="text" placeholder="scene_id"/>
         <input id="pov" type="text" placeholder="pov"/>
@@ -49,44 +83,50 @@
       </div>
     </details>
 
-    <details class="mt">
+    <details class="mt" style="margin-top:12px;">
       <summary>Extra metadata (optional JSON object)</summary>
       <textarea id="extraJson" rows="4" placeholder='{"draft_state":"revise","scene_id":"scene.12"}'></textarea>
     </details>
 
-    <div class="row">
-      <button onclick="upsertChunk('{{ collection }}')">Upsert chunk</button>
+    <div class="row" style="margin-top:12px;">
+      <button onclick="upsertChunk('{{ collection }}')">Save chunk</button>
+      <button class="secondary" onclick="loadChunks('{{ collection }}')">Refresh list</button>
       <div id="upsertMsg" class="muted"></div>
     </div>
 
-    <div class="muted">
+    <div class="muted" style="margin-top:6px;">
       Tip: keep metadata flat so filtering stays reliable.
     </div>
   </section>
 
   <section class="card">
-    <h2>Search</h2>
-    <div class="row">
-      <input id="queryText" type="text" placeholder="e.g. Sahla's birthplace"/>
-      <input id="topK" type="number" min="1" max="50" value="8"/>
-
-      <select id="queryChunkKind" multiple size="6" title="chunk_kinds (optional)">
-        <option value="thing_summary">thing_summary</option>
-        <option value="thing_notes">thing_notes</option>
-        <option value="connection_note">connection_note</option>
-        <option value="chapter_text">chapter_text</option>
-        <option value="scene_text">scene_text</option>
-        <option value="rule_text">rule_text</option>
-        <option value="misc">misc</option>
-      </select>
-
-      <div class="column" style="gap:8px;">
-        <input id="queryThingId" type="text" placeholder="Filter by thing_id (optional)"/>
-        <input id="queryTags" type="text" placeholder="Filter by tags (comma-separated)"/>
+    <div class="section-title">
+      <h2>Search this collection</h2>
+      <span class="hint">Combine semantic query + filters.</span>
+    </div>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+      <div class="stack">
+        <label>Query text</label>
+        <input id="queryText" type="text" placeholder="e.g. Sahla's birthplace"/>
       </div>
-
-      <div class="column" style="gap:8px;">
-        <label>thing_types</label>
+      <div class="stack">
+        <label>Top results</label>
+        <input id="topK" type="number" min="1" max="50" value="8"/>
+      </div>
+      <div class="stack">
+        <label>Chunk kinds</label>
+        <select id="queryChunkKind" multiple size="6" title="chunk_kinds (optional)">
+          <option value="thing_summary">thing_summary</option>
+          <option value="thing_notes">thing_notes</option>
+          <option value="connection_note">connection_note</option>
+          <option value="chapter_text">chapter_text</option>
+          <option value="scene_text">scene_text</option>
+          <option value="rule_text">rule_text</option>
+          <option value="misc">misc</option>
+        </select>
+      </div>
+      <div class="stack">
+        <label>Thing types</label>
         <select id="queryThingType" multiple size="6" title="thing_types (optional)">
           <option value="character">character</option>
           <option value="place">place</option>
@@ -108,19 +148,33 @@
           <option value="other">other</option>
         </select>
       </div>
-
-      <button onclick="queryChunks('{{ collection }}')">Search</button>
+      <div class="stack">
+        <label>thing_id filter</label>
+        <input id="queryThingId" type="text" placeholder="Optional exact thing_id"/>
+      </div>
+      <div class="stack">
+        <label>Tag filter</label>
+        <input id="queryTags" type="text" placeholder="tags (comma-separated)"/>
+      </div>
     </div>
+    <div class="row" style="margin-top:12px;">
+      <button onclick="queryChunks('{{ collection }}')">Run search</button>
+    </div>
+    <div class="divider"></div>
     <div id="results"></div>
   </section>
 
   <section class="card">
-    <h2>Browse</h2>
+    <div class="section-title">
+      <h2>Browse chunks</h2>
+      <span class="hint">Quick peek at what’s stored.</span>
+    </div>
     <div class="row">
       <input id="browseLimit" type="number" min="1" max="200" value="25"/>
       <button onclick="loadChunks('{{ collection }}')">Refresh</button>
       <div id="browseMsg" class="muted"></div>
     </div>
+    <div class="divider"></div>
     <div id="docs"></div>
   </section>
 {% endblock %}
