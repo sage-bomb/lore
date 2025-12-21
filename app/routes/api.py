@@ -1,11 +1,24 @@
-from fastapi import APIRouter, HTTPException
 from typing import Any, Dict, List, Optional
 
+from fastapi import APIRouter, HTTPException, Query
+
 from app.chroma_store import client, get_collection, list_collection_names
+from app.library_store import (
+    delete_connection, delete_thing,
+    get_connection, get_thing,
+    list_connections, list_things,
+    upsert_connection, upsert_thing,
+)
 from app.schemas import (
-    CollectionCreate, CollectionInfo,
-    ChunksUpsert, ChunkOut, ChunkUpdate,
-    QueryRequest, QueryHit,
+    ChunkOut,
+    ChunkUpdate,
+    ChunksUpsert,
+    CollectionCreate,
+    CollectionInfo,
+    Connection,
+    QueryHit,
+    QueryRequest,
+    Thing,
 )
 
 router = APIRouter(prefix="/api", tags=["api"])
@@ -20,14 +33,14 @@ def _merge_where(base: Optional[Dict[str, Any]], extra: Optional[Dict[str, Any]]
     return base or extra
 
 
-def _where_for_doc_kinds(doc_kinds: Optional[List[str]]) -> Optional[Dict[str, Any]]:
-    if not doc_kinds:
-        return None
-    # Chroma supports operators like $in in many versions; if yours doesn't,
-    # you can fall back to issuing multiple queries and merging client-side.
-    if len(doc_kinds) == 1:
-        return {"doc_kind": doc_kinds[0]}
-    return {"doc_kind": {"$in": doc_kinds}}
+def _apply_in_filter(where: Optional[Dict[str, Any]], field: str, values: Optional[List[str]]) -> Optional[Dict[str, Any]]:
+    if not values:
+        return where
+    if len(values) == 1:
+        clause: Dict[str, Any] = {field: values[0]}
+    else:
+        clause = {field: {"$in": values}}
+    return _merge_where(where, clause)
 
 
 # ---------------- Collections CRUD ----------------
@@ -60,6 +73,70 @@ def collections_delete(name: str):
     return {"ok": True, "deleted": name}
 
 
+# ---------------- Things ----------------
+
+@router.post("/things", response_model=Thing)
+def things_upsert(payload: Thing):
+    stored = upsert_thing(payload)
+    return stored
+
+
+@router.get("/things/{thing_id}", response_model=Thing)
+def things_get(thing_id: str):
+    got = get_thing(thing_id)
+    if not got:
+        raise HTTPException(status_code=404, detail="Thing not found")
+    return got
+
+
+@router.get("/things", response_model=List[Thing])
+def things_list(
+    thing_type: Optional[str] = Query(default=None, alias="type", description="Filter by thing_type"),
+    tag: Optional[str] = Query(default=None, description="Filter by tag"),
+    q: Optional[str] = Query(default=None, description="Simple substring match across name/aliases/summary/description"),
+):
+    return list_things(thing_type=thing_type, tag=tag, q=q)
+
+
+@router.delete("/things/{thing_id}")
+def things_delete(thing_id: str):
+    removed = delete_thing(thing_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Thing not found")
+    return {"ok": True, "deleted": thing_id}
+
+
+# ---------------- Connections ----------------
+
+@router.post("/connections", response_model=Connection)
+def connections_upsert(payload: Connection):
+    stored = upsert_connection(payload)
+    return stored
+
+
+@router.get("/connections/{edge_id}", response_model=Connection)
+def connections_get(edge_id: str):
+    got = get_connection(edge_id)
+    if not got:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    return got
+
+
+@router.get("/connections", response_model=List[Connection])
+def connections_list(
+    thing_id: Optional[str] = Query(default=None, description="Return connections involving the thing_id"),
+):
+    return list_connections(thing_id=thing_id)
+
+
+@router.delete("/connections/{edge_id}")
+def connections_delete(edge_id: str):
+    removed = delete_connection(edge_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    return {"ok": True, "deleted": edge_id}
+
+
 # ---------------- Chunks CRUD (preferred) ----------------
 
 @router.post("/collections/{name}/chunks")
@@ -72,14 +149,19 @@ def chunks_upsert(name: str, payload: ChunksUpsert):
     # Put all filterable fields in metadata (flat dict)
     metas: List[Dict[str, Any]] = []
     for c in payload.chunks:
+        chunk_kind = getattr(c, "chunk_kind", None) or getattr(c, "doc_kind", None) or "thing_summary"
+        thing_type = c.thing_type or getattr(c, "record_type", None)
+        thing_id = c.thing_id or getattr(c, "record_id", None)
+
         md: Dict[str, Any] = {
-            "doc_kind": c.doc_kind,
-            "record_type": c.record_type,
-            "record_id": c.record_id,
-            "canon_status": c.canon_status,
+            "chunk_kind": chunk_kind,
+            "thing_id": thing_id,
+            "thing_type": thing_type,
+            "edge_id": c.edge_id,
             "source_file": c.source_file,
             "source_section": c.source_section,
             "chapter_number": c.chapter_number,
+            "scene_id": c.scene_id,
             "pov": c.pov,
             "location_id": c.location_id,
             "entity_ids": c.entity_ids,
@@ -166,10 +248,12 @@ def chunks_query(name: str, payload: QueryRequest):
 
     where = payload.where
 
-    if payload.canon_only:
-        where = _merge_where(where, {"canon_status": "canon"})
-
-    where = _merge_where(where, _where_for_doc_kinds(payload.doc_kinds))
+    where = _apply_in_filter(where, "chunk_kind", payload.chunk_kinds)
+    where = _apply_in_filter(where, "thing_type", payload.thing_types)
+    if payload.thing_id:
+        where = _merge_where(where, {"thing_id": payload.thing_id})
+    if payload.tags:
+        where = _apply_in_filter(where, "tags", payload.tags)
 
     res = col.query(
         query_texts=[payload.query_text],

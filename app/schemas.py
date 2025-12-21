@@ -17,161 +17,75 @@ class CollectionInfo(BaseModel):
 
 
 # =============================================================================
-# Canon models (your "truth store")
-# These objects are *not* required to live in Chroma; they can be stored in JSON,
-# SQLite/Postgres, etc. Chroma can index derived "chunks" for retrieval.
+# Library models (world entities + relationships)
 # =============================================================================
 
-RecordType = Literal[
-    "character", "place", "faction", "culture", "race",
-    "deity", "item", "artifact", "creature", "magic_concept",
-    "ritual", "currency", "term", "event",
-    "chapter", "scene", "style_rule", "lore_entry"
+ThingType = Literal[
+    "character", "place", "faction", "culture", "race", "deity",
+    "artifact", "creature", "magic_concept", "ritual", "currency",
+    "term", "event", "chapter", "scene", "lore_entry",
+    "style_rule", "other"
 ]
 
-CanonStatus = Literal["draft", "canon", "deprecated", "disputed"]
-
-class SourceRef(BaseModel):
-    """Provenance pointer back to your raw files."""
-    model_config = ConfigDict(extra="forbid")
-    source_file: str
-    source_section: Optional[str] = None
-    locator: Optional[str] = None
-    quoted_text: Optional[str] = None
-
-
-class CanonClaim(BaseModel):
-    """A single factual claim with provenance and confidence."""
-    model_config = ConfigDict(extra="forbid")
-    claim: str
-
-    # Optional structure (lets you evolve into continuity checks later)
-    subject_id: Optional[str] = None         # record_id
-    predicate: Optional[str] = None          # e.g. "born_in", "rules", "has_symbol"
-    object_id: Optional[str] = None          # record_id
-    object_value: Optional[str] = None       # literal value
-
-    sources: List[SourceRef] = Field(default_factory=list)
-    confidence: float = Field(default=0.8, ge=0.0, le=1.0)
-    status: CanonStatus = "draft"
-    notes: Optional[str] = None
-
-
-class CanonRecord(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    schema_version: str = "1.1"
-
-    record_type: RecordType
-    record_id: str = Field(min_length=1)     # stable, e.g. "place.valtara"
-    name: str = Field(min_length=1)
+class Thing(BaseModel):
+    thing_id: str = Field(min_length=1, description="Stable ID, e.g. character.sahla")
+    thing_type: ThingType
+    name: str
     aliases: List[str] = Field(default_factory=list)
-
-    summary: Optional[str] = None            # 1-3 sentences (great for embedding)
-    description: Optional[str] = None        # richer prose
-
+    summary: Optional[str] = Field(default=None, description="1-3 sentences")
+    description: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
-    related_ids: List[str] = Field(default_factory=list)
-
-    # Record-level lifecycle/versioning
-    status: CanonStatus = "draft"
+    data: Dict[str, Any] = Field(default_factory=dict)
     version: int = Field(default=1, ge=1)
-    supersedes: Optional[str] = None         # record_id of previous version (if any)
-
-    claims: List[CanonClaim] = Field(default_factory=list)
-
+    supersedes: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class RelationshipEdge(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class Connection(BaseModel):
     edge_id: str
     src_id: str
     dst_id: str
-
-    # Keep flexible early on. If you prefer strict enums, swap to Literal[...] later.
-    rel_type: str = Field(min_length=1)
-
-    strength: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    summary: Optional[str] = None
-    sources: List[SourceRef] = Field(default_factory=list)
-    status: CanonStatus = "draft"
-
-
-# ---------------- Typed records (examples) ----------------
-
-class CharacterData(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    age_range: Optional[str] = None
-    appearance: List[str] = Field(default_factory=list)
-    personality: List[str] = Field(default_factory=list)
-    abilities: List[str] = Field(default_factory=list)
-    flaws: List[str] = Field(default_factory=list)
-    affiliations: List[str] = Field(default_factory=list)  # record_ids
-    motifs: List[str] = Field(default_factory=list)
-    arc_notes: Optional[str] = None
-
-class CharacterRecord(CanonRecord):
-    record_type: Literal["character"] = "character"
-    data: CharacterData = Field(default_factory=CharacterData)
-
-
-class PlaceData(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    place_type: Literal["city", "region", "road", "ruin", "forest", "mountain", "sea", "shrine", "village"] = "region"
-    region_id: Optional[str] = None
-    climate: Optional[str] = None
-    terrain: List[str] = Field(default_factory=list)
-    governance: Optional[str] = None
-    economy: List[str] = Field(default_factory=list)
-    law: List[str] = Field(default_factory=list)
-    factions_present: List[str] = Field(default_factory=list)
-    notable_events: List[str] = Field(default_factory=list)
-
-class PlaceRecord(CanonRecord):
-    record_type: Literal["place"] = "place"
-    data: PlaceData = Field(default_factory=PlaceData)
+    rel_type: str = Field(min_length=1, description="Relationship type label")
+    note: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # =============================================================================
-# Chroma index models (what you actually upsert/query against in the vector DB)
+# Chroma index models (SearchChunks)
 # =============================================================================
 
-DocKind = Literal["record_chunk", "chapter_chunk", "rule_chunk", "edge_chunk"]
+ChunkKind = Literal[
+    "thing_summary", "thing_notes", "connection_note",
+    "chapter_text", "scene_text", "rule_text", "misc"
+]
 
-class ChromaChunk(BaseModel):
+class SearchChunk(BaseModel):
     """One embedding unit stored in Chroma. Keep metadata flat and filter-friendly."""
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     chunk_id: str = Field(min_length=1)
     text: str = Field(min_length=1)
 
-    # flat metadata (filterable)
-    doc_kind: DocKind = "record_chunk"
-    record_type: RecordType
-    record_id: str
-
-    canon_status: CanonStatus = "draft"
-
-    source_file: Optional[str] = None
-    source_section: Optional[str] = None
-
-    # filters commonly useful for manuscript retrieval
+    chunk_kind: ChunkKind = "thing_summary"
+    thing_id: Optional[str] = None
+    thing_type: Optional[str] = None
+    edge_id: Optional[str] = None
     chapter_number: Optional[int] = None
+    scene_id: Optional[str] = None
     pov: Optional[str] = None
     location_id: Optional[str] = None
-
-    # NOTE: list filtering support varies by Chroma version. Keep for now, but if
-    # where-filters can't do "contains", you may need alternate strategy.
     entity_ids: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
-
-    # Optional: any extra small flat fields
-    extra: Optional[JsonDict] = None
+    source_file: Optional[str] = None
+    source_section: Optional[str] = None
+    extra: Optional[Dict[str, Any]] = None
 
 
 class ChunksUpsert(BaseModel):
-    chunks: List[ChromaChunk]
+    chunks: List[SearchChunk]
 
 
 class ChunkOut(BaseModel):
@@ -187,14 +101,12 @@ class ChunkUpdate(BaseModel):
 
 class QueryRequest(BaseModel):
     query_text: str = Field(min_length=1)
-    n_results: int = Field(default=10, ge=1, le=50)
-
-    # Raw Chroma where clause (advanced)
+    n_results: int = Field(default=8, ge=1, le=50)
     where: Optional[JsonDict] = None
-
-    # Convenience filters (we'll merge these into the where clause server-side)
-    doc_kinds: Optional[List[DocKind]] = None
-    canon_only: bool = False
+    chunk_kinds: Optional[List[ChunkKind]] = None
+    thing_types: Optional[List[str]] = None
+    thing_id: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
 class QueryHit(BaseModel):
