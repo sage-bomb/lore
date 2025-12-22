@@ -392,6 +392,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (qs("docResults")) {
     renderDocFindings();
   }
+  if (window.collectionName && qs("docs")) {
+    loadChunks(window.collectionName).catch(() => {});
+  }
 });
 
 // ---------------- Document scout (UI-only) ----------------

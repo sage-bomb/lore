@@ -276,3 +276,9 @@
     <div id="connectionsList"></div>
   </section>
 {% endblock %}
+
+{% block scripts %}
+  <script>
+    window.collectionName = {{ collection | tojson }};
+  </script>
+{% endblock %}
