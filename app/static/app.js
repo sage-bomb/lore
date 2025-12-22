@@ -6,6 +6,14 @@ function val(id) { const el = qs(id); return el ? el.value : ""; }
 function escapeJs(v) { return JSON.stringify(v ?? ""); }
 const docFindings = [];
 
+function toList(val) {
+  if (Array.isArray(val)) return val;
+  if (typeof val === "string" && val.trim()) {
+    return val.split(",").map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 function splitCsv(s) {
   return (s || "")
     .split(",")
@@ -375,8 +383,10 @@ function renderMeta(meta) {
   if (!meta) return "";
   const rows = [];
   if (meta.thing_type) rows.push(`<div class="badge">${escapeHtml(meta.thing_type)}</div>`);
-  if (meta.tags?.length) rows.push(`<div class="mini-text">Tags: ${meta.tags.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join(" ")}</div>`);
-  if (meta.entity_ids?.length) rows.push(`<div class="mini-text">Entities: ${meta.entity_ids.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join(" ")}</div>`);
+  const tags = toList(meta.tags);
+  if (tags.length) rows.push(`<div class="mini-text">Tags: ${tags.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join(" ")}</div>`);
+  const entities = toList(meta.entity_ids);
+  if (entities.length) rows.push(`<div class="mini-text">Entities: ${entities.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join(" ")}</div>`);
   if (meta.source_file || meta.source_section) rows.push(`<div class="mini-text">Source: ${escapeHtml(meta.source_file || "")}${meta.source_section ? ` · ${escapeHtml(meta.source_section)}` : ""}</div>`);
   const extras = Object.entries(meta)
     .filter(([k]) => k.startsWith("extra."))
