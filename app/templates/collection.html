@@ -1,81 +1,97 @@
 {% extends "base.html" %}
 {% block content %}
   <section class="hero">
-    <div class="section-title">
+    <div>
+      <div class="eyebrow">Collection</div>
       <h1>{{ collection }}</h1>
-      <div class="pill-row">
-        <span class="pill">Add chunks</span>
-        <span class="pill">Search &amp; filter</span>
-        <span class="pill">Browse quickly</span>
+      <p>Card-first editing, streamlined search, and connection management in one dark workspace.</p>
+      <div class="pill-row" style="margin-top:8px;">
+        <span class="pill">Add &amp; edit lore cards</span>
+        <span class="pill">Search by meaning</span>
+        <span class="pill">Manage connections</span>
       </div>
     </div>
-    <p>Keep this collection feeling like a workspace instead of a database. Add or upsert chunks, search semantically, and browse what’s already here.</p>
+    <div class="hero-card">
+      <div class="small-label">Quick actions</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="ghost" onclick="loadChunks('{{ collection }}')">Refresh cards</button>
+        <button class="ghost" onclick="queryChunks('{{ collection }}')">Search now</button>
+      </div>
+      <div class="muted" style="margin-top:8px;">Use cards below to add lore, edit metadata, or delete connections fast.</div>
+    </div>
   </section>
 
-  <section class="card">
-    <div class="section-title">
-      <h2>Add or update a chunk</h2>
-      <span class="hint">Give it a clear id, pick a kind, and drop in text.</span>
+  <section class="card highlight">
+    <div class="card-header">
+      <div>
+        <h2 style="margin:0;">Add or edit lore cards</h2>
+        <p class="card-subtitle">Create chunks with clear IDs, assign kinds, and keep metadata tidy.</p>
+      </div>
+      <button onclick="upsertChunk('{{ collection }}')">Save lore card</button>
     </div>
 
-    <div class="grid" style="grid-template-columns: 1.4fr 0.6fr; align-items: center;">
-      <input id="chunkId" type="text" placeholder="chunk.character.sahla.summary"/>
-      <select id="chunkKind">
-        <option value="thing_summary">thing_summary</option>
-        <option value="thing_notes">thing_notes</option>
-        <option value="connection_note">connection_note</option>
-        <option value="chapter_text">chapter_text</option>
-        <option value="scene_text">scene_text</option>
-        <option value="rule_text">rule_text</option>
-        <option value="misc">misc</option>
-      </select>
-    </div>
-
-    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+    <div class="grid two-col">
       <div class="stack">
-        <label>Thing</label>
-        <div class="row">
-          <input id="thingId" type="text" placeholder="thing_id (e.g. character.sahla)"/>
-          <input id="thingType" type="text" placeholder="thing_type (e.g. character)"/>
-        </div>
+        <label>Card ID</label>
+        <input id="chunkId" type="text" placeholder="chunk.character.sahla.summary"/>
+        <div class="input-note">Use readable, stable IDs. Saving again updates the same card.</div>
       </div>
       <div class="stack">
-        <label>Edge / connection</label>
-        <input id="edgeId" type="text" placeholder="edge_id (if this chunk is about a connection)"/>
+        <label>Card kind</label>
+        <select id="chunkKind">
+          <option value="thing_summary">thing_summary</option>
+          <option value="thing_notes">thing_notes</option>
+          <option value="connection_note">connection_note</option>
+          <option value="chapter_text">chapter_text</option>
+          <option value="scene_text">scene_text</option>
+          <option value="rule_text">rule_text</option>
+          <option value="misc">misc</option>
+        </select>
       </div>
     </div>
 
-    <div class="stack" style="margin-top:10px;">
-      <label>Chunk text</label>
-      <textarea id="chunkText" rows="6" placeholder="Summary, chapter excerpt, rule statement, etc."></textarea>
-      <div class="input-note">Keep it concise and focused—short chunks search better.</div>
+    <div class="grid three-col">
+      <div class="stack">
+        <label>Thing ID</label>
+        <input id="thingId" type="text" placeholder="character.sahla"/>
+      </div>
+      <div class="stack">
+        <label>Thing type</label>
+        <input id="thingType" type="text" placeholder="character"/>
+      </div>
+      <div class="stack">
+        <label>Edge / connection ID</label>
+        <input id="edgeId" type="text" placeholder="edge.character.sahla.homeworld"/>
+      </div>
     </div>
 
-    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top:12px;">
+    <div class="stack" style="margin-top:8px;">
+      <label>Lore text</label>
+      <textarea id="chunkText" rows="6" placeholder="Summary, excerpt, rule, or connection note."></textarea>
+      <div class="input-note">Short, focused cards search better.</div>
+    </div>
+
+    <div class="grid three-col" style="margin-top:12px;">
       <div class="stack">
         <label>Tags</label>
-        <input id="tags" type="text" placeholder="tags (comma-separated)"/>
+        <input id="tags" type="text" placeholder="comma separated"/>
       </div>
       <div class="stack">
-        <label>Entity ids</label>
-        <input id="entityIds" type="text" placeholder="entity_ids (comma-separated)"/>
-      </div>
-    </div>
-
-    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top:12px;">
-      <div class="stack">
-        <label>Source</label>
-        <input id="sourceFile" type="text" placeholder="source_file (optional)"/>
+        <label>Entity IDs</label>
+        <input id="entityIds" type="text" placeholder="comma separated"/>
       </div>
       <div class="stack">
-        <label>Section</label>
-        <input id="sourceSection" type="text" placeholder="source_section (optional)"/>
+        <label>Source file / section</label>
+        <div class="row" style="gap:10px;">
+          <input id="sourceFile" type="text" placeholder="source_file"/>
+          <input id="sourceSection" type="text" placeholder="section"/>
+        </div>
       </div>
     </div>
 
     <details class="mt" style="margin-top:12px;">
       <summary>Chapter-style filters (optional)</summary>
-      <div class="grid" style="margin-top:12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+      <div class="grid three-col" style="margin-top:12px;">
         <input id="chapterNumber" type="number" placeholder="chapter_number"/>
         <input id="sceneId" type="text" placeholder="scene_id"/>
         <input id="pov" type="text" placeholder="pov"/>
@@ -89,8 +105,8 @@
     </details>
 
     <div class="row" style="margin-top:12px;">
-      <button onclick="upsertChunk('{{ collection }}')">Save chunk</button>
-      <button class="secondary" onclick="loadChunks('{{ collection }}')">Refresh list</button>
+      <button onclick="upsertChunk('{{ collection }}')">Save lore card</button>
+      <button class="secondary" onclick="loadChunks('{{ collection }}')">Refresh cards</button>
       <div id="upsertMsg" class="muted"></div>
     </div>
 
@@ -100,11 +116,14 @@
   </section>
 
   <section class="card">
-    <div class="section-title">
-      <h2>Search this collection</h2>
-      <span class="hint">Combine semantic query + filters.</span>
+    <div class="card-header">
+      <div>
+        <h2 style="margin:0;">Search lore cards</h2>
+        <p class="card-subtitle">Combine semantic queries with filters for types, tags, or IDs.</p>
+      </div>
+      <button class="ghost" onclick="queryChunks('{{ collection }}')">Run search</button>
     </div>
-    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+    <div class="grid three-col">
       <div class="stack">
         <label>Query text</label>
         <input id="queryText" type="text" placeholder="e.g. Sahla's birthplace"/>
@@ -157,24 +176,103 @@
         <input id="queryTags" type="text" placeholder="tags (comma-separated)"/>
       </div>
     </div>
-    <div class="row" style="margin-top:12px;">
-      <button onclick="queryChunks('{{ collection }}')">Run search</button>
-    </div>
     <div class="divider"></div>
     <div id="results"></div>
   </section>
 
   <section class="card">
-    <div class="section-title">
-      <h2>Browse chunks</h2>
-      <span class="hint">Quick peek at what’s stored.</span>
-    </div>
-    <div class="row">
-      <input id="browseLimit" type="number" min="1" max="200" value="25"/>
-      <button onclick="loadChunks('{{ collection }}')">Refresh</button>
-      <div id="browseMsg" class="muted"></div>
+    <div class="card-header">
+      <div>
+        <h2 style="margin:0;">Browse lore cards</h2>
+        <p class="card-subtitle">Use limits to keep results tight; edit or delete from the cards.</p>
+      </div>
+      <div class="toolbar">
+        <input id="browseLimit" type="number" min="1" max="200" value="25" style="width:110px;"/>
+        <button class="ghost" onclick="loadChunks('{{ collection }}')">Refresh</button>
+        <div id="browseMsg" class="muted"></div>
+      </div>
     </div>
     <div class="divider"></div>
     <div id="docs"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <h2 style="margin:0;">Document scout (OpenAI)</h2>
+        <p class="card-subtitle">Upload a draft and review suggested lore snippets before accepting them.</p>
+      </div>
+      <button class="ghost" onclick="mockAnalyzeDocument()">Analyze draft (UI demo)</button>
+    </div>
+
+    <div class="grid two-col">
+      <div class="stack">
+        <label>Upload document</label>
+        <input id="docFile" type="file" accept=".txt,.md,.doc,.docx,.pdf"/>
+        <div class="input-note">No upload is sent yet—this UI is a placeholder for the OpenAI integration.</div>
+      </div>
+      <div class="stack">
+        <label>Notes for the model</label>
+        <textarea id="docNotes" rows="3" placeholder="What should the model look for? e.g., characters, locations, rules"></textarea>
+      </div>
+    </div>
+
+    <div class="stack" style="margin-top:12px;">
+      <label>Optional URL</label>
+      <input id="docUrl" type="text" placeholder="Paste a link to a chapter or doc (UI only)"/>
+    </div>
+
+    <div class="divider"></div>
+    <div id="docStatus" class="muted">Run the demo to populate mock findings.</div>
+    <div id="docResults" class="card-list" style="margin-top:12px;"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <h2 style="margin:0;">Connections</h2>
+        <p class="card-subtitle">Upsert or delete relationships between things.</p>
+      </div>
+      <div class="row">
+        <button class="ghost" onclick="loadConnections()">Refresh</button>
+      </div>
+    </div>
+    <div class="grid two-col">
+      <div class="stack">
+        <label>Edge ID</label>
+        <input id="edgeFormId" type="text" placeholder="edge.character.sahla.homeworld"/>
+      </div>
+      <div class="stack">
+        <label>Relationship type</label>
+        <input id="edgeRelType" type="text" placeholder="homeworld_of"/>
+      </div>
+    </div>
+    <div class="grid three-col" style="margin-top:12px;">
+      <div class="stack">
+        <label>Source thing ID</label>
+        <input id="edgeSrc" type="text" placeholder="character.sahla"/>
+      </div>
+      <div class="stack">
+        <label>Destination thing ID</label>
+        <input id="edgeDst" type="text" placeholder="place.kaar"/>
+      </div>
+      <div class="stack">
+        <label>Tags</label>
+        <input id="edgeTags" type="text" placeholder="comma separated"/>
+      </div>
+    </div>
+    <div class="stack" style="margin-top:12px;">
+      <label>Note</label>
+      <textarea id="edgeNote" rows="3" placeholder="Short description of the connection"></textarea>
+    </div>
+
+    <div class="row" style="margin-top:12px;">
+      <button onclick="saveConnection()">Save connection</button>
+      <button class="danger" onclick="deleteConnection()">Delete connection</button>
+      <div id="connectionsMsg" class="muted"></div>
+    </div>
+
+    <div class="divider"></div>
+    <div id="connectionsList"></div>
   </section>
 {% endblock %}
