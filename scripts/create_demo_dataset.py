@@ -19,6 +19,19 @@ from app.library_store import upsert_connection, upsert_thing
 from app.schemas import Connection, Thing
 
 
+def normalize_metadata(md: dict) -> dict:
+    """Chroma versions can reject list metadata; convert lists to comma strings."""
+    normalized: dict = {}
+    for key, val in md.items():
+        if val is None:
+            continue
+        if isinstance(val, list):
+            normalized[key] = ", ".join(str(v) for v in val)
+        else:
+            normalized[key] = val
+    return normalized
+
+
 def seed_library() -> None:
     things = [
         Thing(
@@ -85,7 +98,7 @@ def seed_collection(name: str) -> None:
         "chunk.artifact.compass.summary",
         "chunk.connection.sahla.kaar.note",
     ]
-    metadatas = [
+    raw_metadatas = [
         {"chunk_kind": "thing_summary", "thing_id": "character.sahla", "thing_type": "character", "tags": ["navigator", "magic"]},
         {"chunk_kind": "thing_summary", "thing_id": "place.kaar", "thing_type": "place", "tags": ["storm", "archipelago"]},
         {"chunk_kind": "thing_summary", "thing_id": "artifact.compass", "thing_type": "artifact", "tags": ["navigation", "mystery"]},
@@ -97,6 +110,7 @@ def seed_collection(name: str) -> None:
         },
     ]
 
+    metadatas = [normalize_metadata(md) for md in raw_metadatas]
     col.upsert(ids=ids, documents=texts, metadatas=metadatas)
 
 
