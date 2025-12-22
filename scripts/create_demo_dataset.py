@@ -5,7 +5,14 @@ Usage:
   python scripts/create_demo_dataset.py --name demo_lore
 """
 import argparse
+import sys
+from pathlib import Path
 from datetime import datetime, timezone
+
+# Ensure repo root on path when invoked as a script (python scripts/create_demo_dataset.py ...)
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from app.chroma_store import client, get_collection
 from app.library_store import upsert_connection, upsert_thing
