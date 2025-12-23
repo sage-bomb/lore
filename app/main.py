@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.routes.api import router as api_router
 from app.routes.pages import router as pages_router
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="Spellbinder: Chroma Demo")
 
