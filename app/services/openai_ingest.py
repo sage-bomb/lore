@@ -1,11 +1,11 @@
 import json
 import logging
 import os
-from typing import Any, Dict, List, Tuple, get_args
+from typing import Any, Dict, List, Tuple
 
 from app.chroma_store import get_collection, normalize_collection_name
 from app.library_store import list_connections, list_things, upsert_connection, upsert_thing
-from app.schemas import Connection, Thing, ThingType
+from app.schemas import Connection, KNOWN_THING_TYPES, Thing
 
 try:
     from openai import OpenAI
@@ -14,7 +14,7 @@ except ImportError as exc:  # pragma: no cover
 
 
 logger = logging.getLogger(__name__)
-ALLOWED_THING_TYPES = set(get_args(ThingType))
+ALLOWED_THING_TYPES = set(KNOWN_THING_TYPES)
 
 
 def build_prompt(doc_text: str, notes: str | None = None) -> list[dict[str, str]]:
@@ -42,8 +42,8 @@ def normalize_thing_type(value: Any) -> str:
     normalized = str(value).lower().strip()
     if normalized in ALLOWED_THING_TYPES:
         return normalized
-    logger.warning("OpenAI ingest: unknown thing_type '%s'; coercing to 'other'", value)
-    return "other"
+    logger.info("OpenAI ingest: new thing_type '%s' accepted", normalized)
+    return normalized or "other"
 
 
 def call_openai(doc_text: str, notes: str | None = None) -> Dict[str, Any]:
