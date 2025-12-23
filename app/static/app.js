@@ -376,6 +376,7 @@ function fillFormFromCard(chunkId, text, metadataJson) {
         return acc;
       }, {});
     qs("extraJson").value = Object.keys(extraEntries).length ? JSON.stringify(extraEntries, null, 2) : "";
+    openCardModal();
   } catch (e) {
     console.error("Failed to fill form", e);
   }
@@ -528,6 +529,21 @@ function handleEditClick(event) {
   } catch (e) {
     console.error("Failed to edit card", e);
   }
+}
+
+// ---------------- Modal helpers ----------------
+function openCardModal() {
+  const modal = qs("cardModal");
+  if (!modal) return;
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closeCardModal() {
+  const modal = qs("cardModal");
+  if (!modal) return;
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden", "true");
 }
 
 // ---------------- Back-compat aliases ----------------

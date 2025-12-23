@@ -28,100 +28,6 @@
   </div>
 
   <div class="tab-panel" data-panel="lore" style="display:block;">
-    <section class="card highlight">
-      <div class="card-header">
-        <div>
-          <h2 style="margin:0;">Add or edit lore cards</h2>
-          <p class="card-subtitle">Create chunks with clear IDs, assign kinds, and keep metadata tidy.</p>
-        </div>
-        <button onclick="upsertChunk('{{ collection }}')">Save lore card</button>
-      </div>
-
-      <div class="grid two-col">
-        <div class="stack">
-          <label>Card ID</label>
-          <input id="chunkId" type="text" placeholder="chunk.character.sahla.summary"/>
-          <div class="input-note">Use readable, stable IDs. Saving again updates the same card.</div>
-        </div>
-        <div class="stack">
-          <label>Card kind</label>
-          <select id="chunkKind">
-            <option value="thing_summary">thing_summary</option>
-            <option value="thing_notes">thing_notes</option>
-            <option value="connection_note">connection_note</option>
-            <option value="chapter_text">chapter_text</option>
-            <option value="scene_text">scene_text</option>
-            <option value="rule_text">rule_text</option>
-            <option value="misc">misc</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="grid three-col">
-        <div class="stack">
-          <label>Thing ID</label>
-          <input id="thingId" type="text" placeholder="character.sahla"/>
-        </div>
-        <div class="stack">
-          <label>Thing type</label>
-          <input id="thingType" type="text" placeholder="character"/>
-        </div>
-        <div class="stack">
-          <label>Edge / connection ID</label>
-          <input id="edgeId" type="text" placeholder="edge.character.sahla.homeworld"/>
-        </div>
-      </div>
-
-      <div class="stack" style="margin-top:8px;">
-        <label>Lore text</label>
-        <textarea id="chunkText" rows="5" placeholder="Summary, excerpt, rule, or connection note."></textarea>
-        <div class="input-note">Short, focused cards search better.</div>
-      </div>
-
-      <div class="grid three-col" style="margin-top:12px;">
-        <div class="stack">
-          <label>Tags</label>
-          <input id="tags" type="text" placeholder="comma separated"/>
-        </div>
-        <div class="stack">
-          <label>Entity IDs</label>
-          <input id="entityIds" type="text" placeholder="comma separated"/>
-        </div>
-        <div class="stack">
-          <label>Source file / section</label>
-          <div class="row" style="gap:10px;">
-            <input id="sourceFile" type="text" placeholder="source_file"/>
-            <input id="sourceSection" type="text" placeholder="section"/>
-          </div>
-        </div>
-      </div>
-
-      <details class="mt" style="margin-top:12px;">
-        <summary>Chapter-style filters (optional)</summary>
-        <div class="grid three-col" style="margin-top:12px;">
-          <input id="chapterNumber" type="number" placeholder="chapter_number"/>
-          <input id="sceneId" type="text" placeholder="scene_id"/>
-          <input id="pov" type="text" placeholder="pov"/>
-          <input id="locationId" type="text" placeholder="location_id"/>
-        </div>
-      </details>
-
-      <details class="mt" style="margin-top:12px;">
-        <summary>Extra metadata (optional JSON object)</summary>
-        <textarea id="extraJson" rows="4" placeholder='{"draft_state":"revise","scene_id":"scene.12"}'></textarea>
-      </details>
-
-      <div class="row" style="margin-top:12px;">
-        <button onclick="upsertChunk('{{ collection }}')">Save lore card</button>
-        <button class="secondary" onclick="loadChunks('{{ collection }}')">Refresh cards</button>
-        <div id="upsertMsg" class="muted"></div>
-      </div>
-
-      <div class="muted" style="margin-top:6px;">
-        Tip: keep metadata flat so filtering stays reliable.
-      </div>
-    </section>
-
     <section class="card">
       <div class="card-header">
         <div>
@@ -131,6 +37,7 @@
         <div class="toolbar">
           <button class="ghost" onclick="queryChunks('{{ collection }}')">Search</button>
           <button class="secondary" onclick="loadChunks('{{ collection }}')">Browse</button>
+          <button onclick="openCardModal()">Add card</button>
           <input id="browseLimit" type="number" min="1" max="200" value="25" style="width:110px;"/>
         </div>
       </div>
@@ -275,6 +182,98 @@
       <div class="divider"></div>
       <div id="connectionsList"></div>
     </section>
+  </div>
+
+  <div id="cardModal" class="modal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="card-header">
+        <div>
+          <h2 style="margin:0;">Add or edit lore card</h2>
+          <p class="card-subtitle">Create chunks with clear IDs, assign kinds, and keep metadata tidy.</p>
+        </div>
+        <button class="secondary" onclick="closeCardModal()">Close</button>
+      </div>
+
+      <div class="grid two-col">
+        <div class="stack">
+          <label>Card ID</label>
+          <input id="chunkId" type="text" placeholder="chunk.character.sahla.summary"/>
+          <div class="input-note">Use readable, stable IDs. Saving again updates the same card.</div>
+        </div>
+        <div class="stack">
+          <label>Card kind</label>
+          <select id="chunkKind">
+            <option value="thing_summary">thing_summary</option>
+            <option value="thing_notes">thing_notes</option>
+            <option value="connection_note">connection_note</option>
+            <option value="chapter_text">chapter_text</option>
+            <option value="scene_text">scene_text</option>
+            <option value="rule_text">rule_text</option>
+            <option value="misc">misc</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid three-col">
+        <div class="stack">
+          <label>Thing ID</label>
+          <input id="thingId" type="text" placeholder="character.sahla"/>
+        </div>
+        <div class="stack">
+          <label>Thing type</label>
+          <input id="thingType" type="text" placeholder="character"/>
+        </div>
+        <div class="stack">
+          <label>Edge / connection ID</label>
+          <input id="edgeId" type="text" placeholder="edge.character.sahla.homeworld"/>
+        </div>
+      </div>
+
+      <div class="stack" style="margin-top:8px;">
+        <label>Lore text</label>
+        <textarea id="chunkText" rows="5" placeholder="Summary, excerpt, rule, or connection note."></textarea>
+        <div class="input-note">Short, focused cards search better.</div>
+      </div>
+
+      <div class="grid three-col" style="margin-top:12px;">
+        <div class="stack">
+          <label>Tags</label>
+          <input id="tags" type="text" placeholder="comma separated"/>
+        </div>
+        <div class="stack">
+          <label>Entity IDs</label>
+          <input id="entityIds" type="text" placeholder="comma separated"/>
+        </div>
+        <div class="stack">
+          <label>Source file / section</label>
+          <div class="row" style="gap:10px;">
+            <input id="sourceFile" type="text" placeholder="source_file"/>
+            <input id="sourceSection" type="text" placeholder="section"/>
+          </div>
+        </div>
+      </div>
+
+      <details class="mt" style="margin-top:12px;">
+        <summary>Chapter-style filters (optional)</summary>
+        <div class="grid three-col" style="margin-top:12px;">
+          <input id="chapterNumber" type="number" placeholder="chapter_number"/>
+          <input id="sceneId" type="text" placeholder="scene_id"/>
+          <input id="pov" type="text" placeholder="pov"/>
+          <input id="locationId" type="text" placeholder="location_id"/>
+        </div>
+      </details>
+
+      <details class="mt" style="margin-top:12px;">
+        <summary>Extra metadata (optional JSON object)</summary>
+        <textarea id="extraJson" rows="4" placeholder='{"draft_state":"revise","scene_id":"scene.12"}'></textarea>
+      </details>
+
+      <div class="row" style="margin-top:12px;">
+        <button onclick="upsertChunk('{{ collection }}')">Save lore card</button>
+        <button class="secondary" onclick="closeCardModal()">Cancel</button>
+        <div id="upsertMsg" class="muted"></div>
+      </div>
+    </div>
   </div>
 {% endblock %}
 
