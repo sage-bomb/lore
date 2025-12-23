@@ -13,7 +13,11 @@ app = FastAPI(title="Spellbinder: Chroma Demo")
 
 # Static files (JS/CSS)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-app.mount("/uploads", StaticFiles(directory=os.getenv("UPLOADS_ROOT", "./uploads")), name="uploads")
+
+# Uploaded files (ensure the directory exists to avoid startup failure)
+uploads_dir = os.getenv("UPLOADS_ROOT", "./uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 # Pages + API
 app.include_router(pages_router)
