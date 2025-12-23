@@ -235,16 +235,17 @@ async function loadConnections() {
 
   list.innerHTML = data.map(edge => {
     const tags = toList(edge.tags).map(t => `<span class="chip">${escapeHtml(t)}</span>`).join(" ");
+    const edgePayload = encodeURIComponent(JSON.stringify(edge));
     return `
-      <div class="card">
+      <div class="card" data-edge="${edgePayload}">
         <div class="card-header">
           <div>
             <div class="small-label">Edge</div>
             <div style="font-weight:700;">${escapeHtml(edge.edge_id)}</div>
           </div>
           <div class="card-actions">
-            <button class="ghost" onclick="fillEdgeForm(${JSON.stringify(edge.edge_id)}, ${JSON.stringify(edge.src_id)}, ${JSON.stringify(edge.dst_id)}, ${JSON.stringify(edge.rel_type)}, ${JSON.stringify(edge.tags || [])}, ${JSON.stringify(edge.note || "")})">Edit</button>
-            <button class="danger" onclick="deleteConnectionById(${JSON.stringify(edge.edge_id)})">Delete</button>
+            <button class="ghost js-edit-connection" data-edge="${edgePayload}">Edit</button>
+            <button class="danger js-delete-connection" data-edge-id="${encodeURIComponent(edge.edge_id)}">Delete</button>
           </div>
         </div>
         <div class="kv">
@@ -489,6 +490,24 @@ function handleEditClick(event) {
   }
 }
 
+function handleConnectionAction(event) {
+  const deleteBtn = event.target.closest(".js-delete-connection");
+  const editBtn = event.target.closest(".js-edit-connection");
+
+  if (deleteBtn?.dataset?.edgeId) {
+    const edgeId = decodeURIComponent(deleteBtn.dataset.edgeId);
+    deleteConnectionById(edgeId);
+    return;
+  }
+
+  if (editBtn?.dataset?.edge) {
+    const decoded = decodeURIComponent(editBtn.dataset.edge);
+    const edge = safeJsonParse(decoded, {});
+    fillEdgeForm(edge.edge_id || "", edge.src_id || "", edge.dst_id || "", edge.rel_type || "", edge.tags || [], edge.note || "");
+    return;
+  }
+}
+
 // ---------------- Init ----------------
 document.addEventListener("DOMContentLoaded", () => {
   if (qs("connectionsList")) {
@@ -501,6 +520,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadChunks(window.collectionName).catch(() => {});
   }
   document.addEventListener("click", handleEditClick);
+  document.addEventListener("click", handleConnectionAction);
   const analyzeBtn = qs("analyzeDocBtn");
   if (analyzeBtn) {
     analyzeBtn.addEventListener("click", (e) => {
