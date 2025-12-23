@@ -1,11 +1,11 @@
 import json
 import logging
 import os
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, get_args
 
 from app.chroma_store import get_collection, normalize_collection_name
 from app.library_store import list_connections, list_things, upsert_connection, upsert_thing
-from app.schemas import Connection, Thing
+from app.schemas import Connection, Thing, ThingType
 
 try:
     from openai import OpenAI
@@ -14,6 +14,7 @@ except ImportError as exc:  # pragma: no cover
 
 
 logger = logging.getLogger(__name__)
+ALLOWED_THING_TYPES = set(get_args(ThingType))
 
 
 def build_prompt(doc_text: str, notes: str | None = None) -> list[dict[str, str]]:
@@ -33,6 +34,16 @@ def build_prompt(doc_text: str, notes: str | None = None) -> list[dict[str, str]
         {"role": "system", "content": system},
         {"role": "user", "content": f"Document:\n{doc_text}"},
     ]
+
+
+def normalize_thing_type(value: Any) -> str:
+    if not value:
+        return "other"
+    normalized = str(value).lower().strip()
+    if normalized in ALLOWED_THING_TYPES:
+        return normalized
+    logger.warning("OpenAI ingest: unknown thing_type '%s'; coercing to 'other'", value)
+    return "other"
 
 
 def call_openai(doc_text: str, notes: str | None = None) -> Dict[str, Any]:
@@ -124,7 +135,7 @@ def normalize_chunks(chunks: List[Dict[str, Any]], collection_name: str) -> Tupl
         md = {
             "chunk_kind": ch.get("chunk_kind") or "thing_summary",
             "thing_id": ch.get("thing_id"),
-            "thing_type": ch.get("thing_type"),
+            "thing_type": normalize_thing_type(ch.get("thing_type")) if ch.get("thing_type") else None,
             "edge_id": ch.get("edge_id"),
             "tags": ch.get("tags") or [],
         }
@@ -162,7 +173,14 @@ def ingest_lore_from_text(text: str, collection: str, notes: str | None = None) 
     )
 
     # Things
-    new_things = dedupe_things(extracted.get("things") or [])
+    raw_things = extracted.get("things") or []
+    sanitized_things: List[Dict[str, Any]] = []
+    for t in raw_things:
+        copy = dict(t)
+        copy["thing_type"] = normalize_thing_type(copy.get("thing_type"))
+        sanitized_things.append(copy)
+
+    new_things = dedupe_things(sanitized_things)
     for t in new_things:
         try:
             upsert_thing(Thing.model_validate(t))
