@@ -474,6 +474,13 @@ document.addEventListener("DOMContentLoaded", () => {
     loadChunks(window.collectionName).catch(() => {});
   }
   document.addEventListener("click", handleEditClick);
+  const analyzeBtn = qs("analyzeDocBtn");
+  if (analyzeBtn) {
+    analyzeBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      analyzeDocument();
+    });
+  }
 });
 
 // ---------------- Back-compat aliases ----------------
