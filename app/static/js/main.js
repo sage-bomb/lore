@@ -280,7 +280,18 @@ function fillEdgeForm(edge_id, src_id, dst_id, rel_type, tags, note) {
 
 function fillFormFromCard(chunkId, text, metadataJson) {
   try {
-    const meta = typeof metadataJson === "string" ? JSON.parse(metadataJson) : metadataJson || {};
+    let meta = {};
+    if (typeof metadataJson === "string") {
+      try {
+        meta = JSON.parse(metadataJson) || {};
+      } catch (e) {
+        console.warn("Failed to parse card metadata; using empty object", e);
+        meta = {};
+      }
+    } else {
+      meta = metadataJson || {};
+    }
+
     qs("chunkId").value = chunkId || "";
     qs("chunkKind").value = meta.chunk_kind || "thing_summary";
     qs("thingId").value = meta.thing_id || "";
