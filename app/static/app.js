@@ -171,7 +171,10 @@ async function queryChunks(collection) {
             ${dist}
           </div>
           <div class="card-actions">
-            <button class="ghost" onclick="fillFormFromCard(${escapeJs(h.id)}, ${escapeJs(h.text || "")}, ${escapeJs(h.metadata || {})})">Edit</button>
+            <button class="ghost js-edit-card"
+              data-id="${escapeHtml(h.id)}"
+              data-text="${escapeHtml(h.text || "")}"
+              data-meta="${encodeURIComponent(JSON.stringify(h.metadata || {}))}">Edit</button>
           </div>
         </div>
         ${txt}
@@ -220,7 +223,10 @@ async function loadChunks(collection) {
             <div class="pill-row" style="margin-top:6px; gap:6px;">${chipKind} ${chipThing}</div>
           </div>
           <div class="card-actions">
-            <button class="ghost" onclick="fillFormFromCard(${escapeJs(it.id)}, ${escapeJs(it.text || "")}, ${escapeJs(it.metadata || {})})">Edit</button>
+            <button class="ghost js-edit-card"
+              data-id="${escapeHtml(it.id)}"
+              data-text="${escapeHtml(it.text || "")}"
+              data-meta="${encodeURIComponent(JSON.stringify(it.metadata || {}))}">Edit</button>
             <button class="danger" onclick="deleteChunk('${collection}', ${escapeJs(it.id)})">Delete</button>
           </div>
         </div>
@@ -407,9 +413,10 @@ document.addEventListener("DOMContentLoaded", () => {
   if (qs("docResults")) {
     renderDocFindings();
   }
-  if (window.collectionName && qs("docs")) {
+  if (window.collectionName && qs("cardsList")) {
     loadChunks(window.collectionName).catch(() => {});
   }
+  document.addEventListener("click", handleEditClick);
 });
 
 // ---------------- Document scout (UI-only) ----------------
@@ -510,6 +517,17 @@ function switchTab(name) {
   document.querySelectorAll(".tab-panel").forEach(panel => {
     panel.style.display = panel.dataset.panel === name ? "block" : "none";
   });
+}
+
+function handleEditClick(event) {
+  const btn = event.target.closest(".js-edit-card");
+  if (!btn) return;
+  try {
+    const metaRaw = btn.dataset.meta ? decodeURIComponent(btn.dataset.meta) : "{}";
+    fillFormFromCard(btn.dataset.id || "", btn.dataset.text || "", metaRaw);
+  } catch (e) {
+    console.error("Failed to edit card", e);
+  }
 }
 
 // ---------------- Back-compat aliases ----------------
