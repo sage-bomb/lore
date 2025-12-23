@@ -1,49 +1,19 @@
-// Updated front-end helpers for chunk-based API.
-// Drop this in your /static/app.js (or copy pieces into your existing file).
+import {
+  qs, val, splitCsv, parseOptionalInt, parseJsonObject, toList, escapeHtml
+} from "./helpers.js";
+import { cardTemplate } from "./cards.js";
 
-function qs(id) { return document.getElementById(id); }
-function val(id) { const el = qs(id); return el ? el.value : ""; }
-function escapeJs(v) { return JSON.stringify(v ?? ""); }
 const docFindings = [];
-
-function toList(val) {
-  if (Array.isArray(val)) return val;
-  if (typeof val === "string" && val.trim()) {
-    return val.split(",").map(s => s.trim()).filter(Boolean);
-  }
-  return [];
-}
-
-function splitCsv(s) {
-  return (s || "")
-    .split(",")
-    .map(x => x.trim())
-    .filter(Boolean);
-}
-
-function parseOptionalInt(s) {
-  if (s === null || s === undefined || s === "") return null;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
-}
-
-function parseJsonObject(s) {
-  const t = (s || "").trim();
-  if (!t) return null;
-  const obj = JSON.parse(t);
-  if (obj && typeof obj === "object" && !Array.isArray(obj)) return obj;
-  throw new Error("extra_json must be a JSON object");
-}
 
 // ---------------- Collections ----------------
 
 async function createCollection() {
   const name = val("newCollectionName").trim();
   const msg = qs("createCollectionMsg");
-  msg.textContent = "";
+  if (msg) msg.textContent = "";
 
   if (!name) {
-    msg.textContent = "Please enter a collection name.";
+    if (msg) msg.textContent = "Please enter a collection name.";
     return;
   }
 
@@ -54,7 +24,7 @@ async function createCollection() {
   });
 
   const data = await res.json().catch(() => ({}));
-  msg.textContent = res.ok ? `Created: ${data.name}` : (data.detail || "Error creating collection");
+  if (msg) msg.textContent = res.ok ? `Created: ${data.name}` : (data.detail || "Error creating collection");
   if (res.ok) window.location.reload();
 }
 
@@ -62,13 +32,13 @@ async function createCollection() {
 
 async function upsertChunk(collection) {
   const msg = qs("upsertMsg");
-  msg.textContent = "";
+  if (msg) msg.textContent = "";
 
   const chunk_id = val("chunkId").trim();
   const text = val("chunkText").trim();
 
   if (!chunk_id || !text) {
-    msg.textContent = "chunk_id and text are required.";
+    if (msg) msg.textContent = "chunk_id and text are required.";
     return;
   }
 
@@ -95,7 +65,7 @@ async function upsertChunk(collection) {
   try {
     payload.chunks[0].extra = parseJsonObject(val("extraJson"));
   } catch (e) {
-    msg.textContent = `Extra JSON error: ${e.message}`;
+    if (msg) msg.textContent = `Extra JSON error: ${e.message}`;
     return;
   }
 
@@ -106,10 +76,10 @@ async function upsertChunk(collection) {
   });
 
   const data = await res.json().catch(() => ({}));
-  msg.textContent = res.ok ? `Upserted ${data.upserted} chunk(s).` : (data.detail || "Error upserting chunk");
+  if (msg) msg.textContent = res.ok ? `Upserted ${data.upserted} chunk(s).` : (data.detail || "Error upserting chunk");
   if (res.ok) {
-    // refresh browse view for convenience
     loadChunks(collection).catch(() => {});
+    closeCardModal();
   }
 }
 
@@ -133,6 +103,7 @@ async function queryChunks(collection) {
 
   if (!payload.query_text) {
     results.innerHTML = `<div class="muted">Enter a query.</div>`;
+    if (status) status.textContent = "Enter a query.";
     return;
   }
 
@@ -155,33 +126,11 @@ async function queryChunks(collection) {
     return;
   }
 
-  results.innerHTML = hits.map(h => {
-    const md = h.metadata ? renderMeta(h.metadata) : "";
-    const txt = h.text ? `<p class="mini-text">${escapeHtml(h.text)}</p>` : "";
-    const dist = (h.distance === null || h.distance === undefined) ? "" : `<div class="muted">distance: ${h.distance.toFixed(4)}</div>`;
-    const chipKind = h.metadata?.chunk_kind ? `<span class="chip">${escapeHtml(h.metadata.chunk_kind)}</span>` : "";
-    const chipThing = h.metadata?.thing_id ? `<span class="chip">${escapeHtml(h.metadata.thing_id)}</span>` : "";
-    return `
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="small-label">Card ID</div>
-            <div style="font-weight:700;">${escapeHtml(h.id)}</div>
-            <div class="pill-row" style="margin-top:6px; gap:6px;">${chipKind} ${chipThing}</div>
-            ${dist}
-          </div>
-          <div class="card-actions">
-            <button class="ghost js-edit-card"
-              data-id="${escapeHtml(h.id)}"
-              data-text="${escapeHtml(h.text || "")}"
-              data-meta="${encodeURIComponent(JSON.stringify(h.metadata || {}))}">Edit</button>
-          </div>
-        </div>
-        ${txt}
-        ${md}
-      </div>
-    `;
-  }).join("");
+  results.innerHTML = hits.map(h => cardTemplate({
+    id: h.id,
+    text: h.text,
+    metadata: h.metadata
+  }, { distance: h.distance, collection })).join("");
   if (status) status.textContent = `Showing ${hits.length} result(s).`;
 }
 
@@ -197,7 +146,7 @@ async function loadChunks(collection) {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    msg.textContent = data.detail || "Error loading chunks";
+    if (msg) msg.textContent = data.detail || "Error loading chunks";
     return;
   }
 
@@ -209,38 +158,18 @@ async function loadChunks(collection) {
     return;
   }
 
-  docsEl.innerHTML = items.map(it => {
-    const md = it.metadata ? renderMeta(it.metadata) : "";
-    const txt = it.text ? `<p class="mini-text">${escapeHtml(it.text)}</p>` : "";
-    const chipKind = it.metadata?.chunk_kind ? `<span class="chip">${escapeHtml(it.metadata.chunk_kind)}</span>` : "";
-    const chipThing = it.metadata?.thing_id ? `<span class="chip">${escapeHtml(it.metadata.thing_id)}</span>` : "";
-    return `
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="small-label">Card ID</div>
-            <div style="font-weight:700;">${escapeHtml(it.id)}</div>
-            <div class="pill-row" style="margin-top:6px; gap:6px;">${chipKind} ${chipThing}</div>
-          </div>
-          <div class="card-actions">
-            <button class="ghost js-edit-card"
-              data-id="${escapeHtml(it.id)}"
-              data-text="${escapeHtml(it.text || "")}"
-              data-meta="${encodeURIComponent(JSON.stringify(it.metadata || {}))}">Edit</button>
-            <button class="danger" onclick="deleteChunk('${collection}', ${escapeJs(it.id)})">Delete</button>
-          </div>
-        </div>
-        ${txt}
-        ${md}
-      </div>
-    `;
-  }).join("");
+  docsEl.innerHTML = items.map(it => cardTemplate({
+    id: it.id,
+    text: it.text,
+    metadata: it.metadata
+  }, { collection })).join("");
 }
 
-// -- Connections UI helpers --
+// ---------------- Connections ----------------
+
 async function saveConnection() {
   const msg = qs("connectionsMsg");
-  msg.textContent = "";
+  if (msg) msg.textContent = "";
 
   const edge_id = val("edgeFormId").trim();
   const src_id = val("edgeSrc").trim();
@@ -248,7 +177,7 @@ async function saveConnection() {
   const rel_type = val("edgeRelType").trim();
 
   if (!edge_id || !src_id || !dst_id || !rel_type) {
-    msg.textContent = "Edge id, source, destination, and type are required.";
+    if (msg) msg.textContent = "Edge id, source, destination, and type are required.";
     return;
   }
 
@@ -267,24 +196,22 @@ async function saveConnection() {
     body: JSON.stringify(payload)
   });
   const data = await res.json().catch(() => ({}));
-  msg.textContent = res.ok ? `Saved ${data.edge_id}` : (data.detail || "Error saving connection");
-  if (res.ok) {
-    loadConnections().catch(() => {});
-  }
+  if (msg) msg.textContent = res.ok ? `Saved ${data.edge_id}` : (data.detail || "Error saving connection");
+  if (res.ok) loadConnections().catch(() => {});
 }
 
 async function deleteConnection() {
   const msg = qs("connectionsMsg");
-  msg.textContent = "";
+  if (msg) msg.textContent = "";
   const edge_id = val("edgeFormId").trim();
   if (!edge_id) {
-    msg.textContent = "Enter an edge id to delete.";
+    if (msg) msg.textContent = "Enter an edge id to delete.";
     return;
   }
 
   const res = await fetch(`/api/connections/${encodeURIComponent(edge_id)}`, { method: "DELETE" });
   const data = await res.json().catch(() => ({}));
-  msg.textContent = res.ok ? `Deleted ${edge_id}` : (data.detail || "Error deleting connection");
+  if (msg) msg.textContent = res.ok ? `Deleted ${edge_id}` : (data.detail || "Error deleting connection");
   if (res.ok) loadConnections().catch(() => {});
 }
 
@@ -307,7 +234,7 @@ async function loadConnections() {
   }
 
   list.innerHTML = data.map(edge => {
-    const tags = (edge.tags || []).map(t => `<span class="chip">${escapeHtml(t)}</span>`).join(" ");
+    const tags = toList(edge.tags).map(t => `<span class="chip">${escapeHtml(t)}</span>`).join(" ");
     return `
       <div class="card">
         <div class="card-header">
@@ -316,8 +243,8 @@ async function loadConnections() {
             <div style="font-weight:700;">${escapeHtml(edge.edge_id)}</div>
           </div>
           <div class="card-actions">
-            <button class="ghost" onclick="fillEdgeForm(${escapeJs(edge.edge_id)}, ${escapeJs(edge.src_id)}, ${escapeJs(edge.dst_id)}, ${escapeJs(edge.rel_type)}, ${escapeJs(edge.tags || [])}, ${escapeJs(edge.note || "")})">Edit</button>
-            <button class="danger" onclick="deleteConnectionById(${escapeJs(edge.edge_id)})">Delete</button>
+            <button class="ghost" onclick="fillEdgeForm(${JSON.stringify(edge.edge_id)}, ${JSON.stringify(edge.src_id)}, ${JSON.stringify(edge.dst_id)}, ${JSON.stringify(edge.rel_type)}, ${JSON.stringify(edge.tags || [])}, ${JSON.stringify(edge.note || "")})">Edit</button>
+            <button class="danger" onclick="deleteConnectionById(${JSON.stringify(edge.edge_id)})">Delete</button>
           </div>
         </div>
         <div class="kv">
@@ -334,10 +261,10 @@ async function loadConnections() {
 
 async function deleteConnectionById(edgeId) {
   const msg = qs("connectionsMsg");
-  msg.textContent = "";
+  if (msg) msg.textContent = "";
   const res = await fetch(`/api/connections/${encodeURIComponent(edgeId)}`, { method: "DELETE" });
   const data = await res.json().catch(() => ({}));
-  msg.textContent = res.ok ? `Deleted ${edgeId}` : (data.detail || "Error deleting connection");
+  if (msg) msg.textContent = res.ok ? `Deleted ${edgeId}` : (data.detail || "Error deleting connection");
   if (res.ok) loadConnections().catch(() => {});
 }
 
@@ -384,41 +311,12 @@ function fillFormFromCard(chunkId, text, metadataJson) {
 
 async function deleteChunk(collection, chunkId) {
   const msg = qs("upsertMsg");
-  msg.textContent = "";
+  if (msg) msg.textContent = "";
   const res = await fetch(`/api/collections/${encodeURIComponent(collection)}/chunks/${encodeURIComponent(chunkId)}`, { method: "DELETE" });
   const data = await res.json().catch(() => ({}));
-  msg.textContent = res.ok ? `Deleted ${chunkId}` : (data.detail || "Error deleting chunk");
+  if (msg) msg.textContent = res.ok ? `Deleted ${chunkId}` : (data.detail || "Error deleting chunk");
   if (res.ok) loadChunks(collection).catch(() => {});
 }
-
-function renderMeta(meta) {
-  if (!meta) return "";
-  const rows = [];
-  if (meta.thing_type) rows.push(`<div class="badge">${escapeHtml(meta.thing_type)}</div>`);
-  const tags = toList(meta.tags);
-  if (tags.length) rows.push(`<div class="mini-text">Tags: ${tags.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join(" ")}</div>`);
-  const entities = toList(meta.entity_ids);
-  if (entities.length) rows.push(`<div class="mini-text">Entities: ${entities.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join(" ")}</div>`);
-  if (meta.source_file || meta.source_section) rows.push(`<div class="mini-text">Source: ${escapeHtml(meta.source_file || "")}${meta.source_section ? ` · ${escapeHtml(meta.source_section)}` : ""}</div>`);
-  const extras = Object.entries(meta)
-    .filter(([k]) => k.startsWith("extra."))
-    .map(([k, v]) => `<div class="mini-text">${escapeHtml(k.replace("extra.", ""))}: ${escapeHtml(v)}</div>`)
-    .join("");
-  return `<div class="stack">${rows.join("")}${extras}</div>`;
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  if (qs("connectionsList")) {
-    loadConnections().catch(() => {});
-  }
-  if (qs("docResults")) {
-    renderDocFindings();
-  }
-  if (window.collectionName && qs("cardsList")) {
-    loadChunks(window.collectionName).catch(() => {});
-  }
-  document.addEventListener("click", handleEditClick);
-});
 
 // ---------------- Document scout (UI-only) ----------------
 function mockAnalyzeDocument() {
@@ -473,7 +371,7 @@ function renderDocFindings() {
 
   list.innerHTML = docFindings
     .map((finding) => {
-      const chips = (finding.tags || []).map((t) => `<span class="chip">${escapeHtml(t)}</span>`).join(" ");
+      const chips = toList(finding.tags || []).map((t) => `<span class="chip">${escapeHtml(t)}</span>`).join(" ");
       const stateClass = finding.status === "accepted" ? "is-accepted" : finding.status === "rejected" ? "is-rejected" : "";
       const stateLabel =
         finding.status === "accepted"
@@ -491,8 +389,8 @@ function renderDocFindings() {
               <div class="pill-row" style="margin-top:6px;">${chips}</div>
             </div>
             <div class="card-actions">
-              <button class="ghost" onclick="markFinding(${escapeJs(finding.id)}, 'accepted')">Accept</button>
-              <button class="secondary" onclick="markFinding(${escapeJs(finding.id)}, 'rejected')">Reject</button>
+              <button class="ghost" onclick="markFinding(${JSON.stringify(finding.id)}, 'accepted')">Accept</button>
+              <button class="secondary" onclick="markFinding(${JSON.stringify(finding.id)}, 'rejected')">Reject</button>
             </div>
           </div>
           <p class="mini-text">${escapeHtml(finding.excerpt)}</p>
@@ -510,7 +408,7 @@ function markFinding(id, status) {
   renderDocFindings();
 }
 
-// ---------------- Tabs ----------------
+// ---------------- Tabs & Modal ----------------
 function switchTab(name) {
   document.querySelectorAll(".tab").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.tab === name);
@@ -520,18 +418,6 @@ function switchTab(name) {
   });
 }
 
-function handleEditClick(event) {
-  const btn = event.target.closest(".js-edit-card");
-  if (!btn) return;
-  try {
-    const metaRaw = btn.dataset.meta ? decodeURIComponent(btn.dataset.meta) : "{}";
-    fillFormFromCard(btn.dataset.id || "", btn.dataset.text || "", metaRaw);
-  } catch (e) {
-    console.error("Failed to edit card", e);
-  }
-}
-
-// ---------------- Modal helpers ----------------
 function openCardModal() {
   const modal = qs("cardModal");
   if (!modal) return;
@@ -546,17 +432,53 @@ function closeCardModal() {
   modal.setAttribute("aria-hidden", "true");
 }
 
+function handleEditClick(event) {
+  const btn = event.target.closest(".js-edit-card");
+  if (!btn) return;
+  try {
+    const metaRaw = btn.dataset.meta ? decodeURIComponent(btn.dataset.meta) : "{}";
+    fillFormFromCard(btn.dataset.id || "", btn.dataset.text || "", metaRaw);
+  } catch (e) {
+    console.error("Failed to edit card", e);
+  }
+}
+
+// ---------------- Init ----------------
+document.addEventListener("DOMContentLoaded", () => {
+  if (qs("connectionsList")) {
+    loadConnections().catch(() => {});
+  }
+  if (qs("docResults")) {
+    renderDocFindings();
+  }
+  if (window.collectionName && qs("cardsList")) {
+    loadChunks(window.collectionName).catch(() => {});
+  }
+  document.addEventListener("click", handleEditClick);
+});
+
 // ---------------- Back-compat aliases ----------------
 function upsertDoc(collection) { return upsertChunk(collection); }
 function queryDocs(collection) { return queryChunks(collection); }
 function loadDocs(collection) { return loadChunks(collection); }
 
-// ---------------- Small utility ----------------
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+// expose for inline handlers
+window.createCollection = createCollection;
+window.upsertChunk = upsertChunk;
+window.queryChunks = queryChunks;
+window.loadChunks = loadChunks;
+window.saveConnection = saveConnection;
+window.deleteConnection = deleteConnection;
+window.loadConnections = loadConnections;
+window.fillEdgeForm = fillEdgeForm;
+window.deleteConnectionById = deleteConnectionById;
+window.mockAnalyzeDocument = mockAnalyzeDocument;
+window.markFinding = markFinding;
+window.switchTab = switchTab;
+window.openCardModal = openCardModal;
+window.closeCardModal = closeCardModal;
+window.upsertDoc = upsertDoc;
+window.queryDocs = queryDocs;
+window.loadDocs = loadDocs;
+window.deleteChunk = deleteChunk;
+window.fillFormFromCard = fillFormFromCard;
