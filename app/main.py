@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -12,6 +13,7 @@ app = FastAPI(title="Spellbinder: Chroma Demo")
 
 # Static files (JS/CSS)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/uploads", StaticFiles(directory=os.getenv("UPLOADS_ROOT", "./uploads")), name="uploads")
 
 # Pages + API
 app.include_router(pages_router)

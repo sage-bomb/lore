@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from app.chroma_store import (
     client,
@@ -31,6 +31,7 @@ from app.schemas import (
 )
 from app.ingest import ingest_text
 from app.services.openai_ingest import ingest_lore_from_text
+from app.upload_store import describe_upload, extract_text_from_bytes, save_upload
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -101,12 +102,80 @@ def collections_delete(name: str):
 @router.post("/ingest/openai", response_model=OpenAIIngestResponse)
 def ingest_openai(payload: OpenAIIngestRequest):
     try:
-        result = ingest_lore_from_text(payload.text, payload.collection, payload.notes)
+        source = {"url": payload.url} if payload.url else None
+        result = ingest_lore_from_text(payload.text, payload.collection, payload.notes, source=source)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return result
+
+
+@router.post("/ingest/upload")
+async def ingest_upload(
+    collection: str = Form(...),
+    notes: Optional[str] = Form(default=None),
+    files: List[UploadFile] = File(...),
+):
+    safe_collection = normalize_collection_name(collection)
+    if not files:
+        raise HTTPException(status_code=400, detail="At least one file is required.")
+
+    totals = {"things": 0, "connections": 0, "chunks": 0}
+    all_chunks: List[Dict[str, Any]] = []
+    file_results: List[Dict[str, Any]] = []
+
+    for f in files:
+        data = await f.read()
+        upload_meta = save_upload(f, data)
+        text = extract_text_from_bytes(data)
+        size_bytes = len(data) if data is not None else None
+
+        if not text.strip():
+            file_results.append({
+                "file": describe_upload(upload_meta, size_bytes),
+                "error": "File is empty or unreadable",
+            })
+            continue
+
+        try:
+            result = ingest_lore_from_text(
+                text=text,
+                collection=safe_collection,
+                notes=notes,
+                source={
+                    "filename": upload_meta["filename"],
+                    "file_id": upload_meta["file_id"],
+                    "url": upload_meta["url"],
+                },
+            )
+        except Exception as exc:
+            file_results.append({
+                "file": describe_upload(upload_meta, size_bytes),
+                "error": str(exc),
+            })
+            continue
+
+        totals["things"] += result["counts"]["things"]
+        totals["connections"] += result["counts"]["connections"]
+        totals["chunks"] += result["counts"]["chunks"]
+        all_chunks.extend(result.get("chunks") or [])
+
+        file_results.append({
+            "file": describe_upload(upload_meta, size_bytes),
+            "counts": result["counts"],
+            "things": result.get("things") or [],
+            "connections": result.get("connections") or [],
+            "chunks": result.get("chunks") or [],
+        })
+
+    return {
+        "ok": True,
+        "collection": safe_collection,
+        "totals": totals,
+        "files": file_results,
+        "chunks": all_chunks,
+    }
 
 
 # ---------------- Things ----------------

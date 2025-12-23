@@ -115,7 +115,11 @@ def dedupe_connections(conns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return list(unique.values())
 
 
-def normalize_chunks(chunks: List[Dict[str, Any]], collection_name: str) -> Tuple[List[str], List[str], List[Dict[str, Any]]]:
+def normalize_chunks(
+    chunks: List[Dict[str, Any]],
+    collection_name: str,
+    base_metadata: Dict[str, Any] | None = None,
+) -> Tuple[List[str], List[str], List[Dict[str, Any]]]:
     col = get_collection(collection_name)
     ids: List[str] = []
     texts: List[str] = []
@@ -139,6 +143,8 @@ def normalize_chunks(chunks: List[Dict[str, Any]], collection_name: str) -> Tupl
             "edge_id": ch.get("edge_id"),
             "tags": ch.get("tags") or [],
         }
+        if base_metadata:
+            md.update(base_metadata)
         md = {k: v for k, v in md.items() if v not in (None, [], {}, "")}
         ids.append(cid)
         texts.append(text)
@@ -153,7 +159,12 @@ def normalize_chunks(chunks: List[Dict[str, Any]], collection_name: str) -> Tupl
     return ids, texts, metas
 
 
-def ingest_lore_from_text(text: str, collection: str, notes: str | None = None) -> Dict[str, Any]:
+def ingest_lore_from_text(
+    text: str,
+    collection: str,
+    notes: str | None = None,
+    source: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
     if not text or not text.strip():
         raise ValueError("text must be provided")
 
@@ -199,7 +210,15 @@ def ingest_lore_from_text(text: str, collection: str, notes: str | None = None) 
             raise
 
     # Chunks
-    ids, texts, metas = normalize_chunks(extracted.get("chunks") or [], safe_collection)
+    base_meta = {}
+    if source:
+        base_meta = {
+            "source_file": source.get("filename"),
+            "source_url": source.get("url"),
+            "source_file_id": source.get("file_id"),
+        }
+
+    ids, texts, metas = normalize_chunks(extracted.get("chunks") or [], safe_collection, base_meta)
     if ids:
         col = get_collection(safe_collection)
         col.upsert(ids=ids, documents=texts, metadatas=metas)
@@ -209,6 +228,16 @@ def ingest_lore_from_text(text: str, collection: str, notes: str | None = None) 
     else:
         logger.info("OpenAI ingest: no new chunks to store")
 
+    annotated_chunks = extracted.get("chunks") or []
+    if base_meta:
+        enriched: List[Dict[str, Any]] = []
+        for ch in annotated_chunks:
+            copy = dict(ch)
+            for k, v in base_meta.items():
+                copy.setdefault(k, v)
+            enriched.append(copy)
+        annotated_chunks = enriched
+
     return {
         "counts": {
             "things": len(new_things),
@@ -217,5 +246,5 @@ def ingest_lore_from_text(text: str, collection: str, notes: str | None = None) 
         },
         "things": new_things,
         "connections": new_conns,
-        "chunks": extracted.get("chunks") or [],
+        "chunks": annotated_chunks,
     }

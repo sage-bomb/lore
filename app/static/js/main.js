@@ -332,9 +332,10 @@ async function analyzeDocument() {
   if (status) status.textContent = "Reading document...";
 
   let text = pasted;
-  if (fileInput?.files?.[0]) {
+  const files = Array.from(fileInput?.files || []);
+  if (!text && files.length === 1) {
     try {
-      text = await readFileText(fileInput.files[0]);
+      text = await readFileText(files[0]);
     } catch (e) {
       if (status) status.textContent = "Failed to read file.";
       logDoc("Failed to read file. See console for details.");
@@ -343,27 +344,41 @@ async function analyzeDocument() {
     }
   }
 
-  if (!text) {
+  if (!text && !files.length) {
     if (status) status.textContent = "Provide a file or pasted document text.";
     logDoc("No content provided.");
     return;
   }
 
-  if (status) status.textContent = "Sending to OpenAI...";
-  logDoc("Sending request to /api/ingest/openai...");
+  if (files.length) {
+    if (status) status.textContent = `Uploading ${files.length} file(s)...`;
+    logDoc(`Sending ${files.length} file(s) to /api/ingest/upload...`);
+  } else {
+    if (status) status.textContent = "Sending to OpenAI...";
+    logDoc("Sending request to /api/ingest/openai...");
+  }
 
   let data = {};
   try {
-    const res = await fetch("/api/ingest/openai", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        collection,
-        text,
-        notes,
-        url: val("docUrl").trim() || null
-      })
-    });
+    let res;
+    if (files.length) {
+      const form = new FormData();
+      form.append("collection", collection);
+      form.append("notes", notes);
+      files.forEach((f) => form.append("files", f));
+      res = await fetch("/api/ingest/upload", { method: "POST", body: form });
+    } else {
+      res = await fetch("/api/ingest/openai", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          collection,
+          text,
+          notes,
+          url: val("docUrl").trim() || null
+        })
+      });
+    }
 
     data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -390,8 +405,21 @@ async function analyzeDocument() {
   })));
 
   renderDocFindings();
-  if (status) status.textContent = `Ingested. Added ${data.counts?.things || 0} things, ${data.counts?.connections || 0} connections, ${data.counts?.chunks || 0} chunks.`;
-  logDoc(`Ingest complete. Things: ${data.counts?.things || 0}, Connections: ${data.counts?.connections || 0}, Chunks: ${data.counts?.chunks || 0}`);
+  if (files.length) {
+    const totals = data.totals || {};
+    if (status) status.textContent = `Uploaded ${files.length} file(s). Added ${totals.things || 0} things, ${totals.connections || 0} connections, ${totals.chunks || 0} chunks.`;
+    logDoc(`Upload ingest complete. Files: ${files.length}, Things: ${totals.things || 0}, Connections: ${totals.connections || 0}, Chunks: ${totals.chunks || 0}`);
+    (data.files || []).forEach((f) => {
+      if (f.error) {
+        logDoc(`- ${f.file?.filename || "file"}: ERROR ${f.error}`);
+      } else {
+        logDoc(`- ${f.file?.filename || "file"} stored at ${f.file?.url || "n/a"} (chunks ${f.counts?.chunks || 0})`);
+      }
+    });
+  } else {
+    if (status) status.textContent = `Ingested. Added ${data.counts?.things || 0} things, ${data.counts?.connections || 0} connections, ${data.counts?.chunks || 0} chunks.`;
+    logDoc(`Ingest complete. Things: ${data.counts?.things || 0}, Connections: ${data.counts?.connections || 0}, Chunks: ${data.counts?.chunks || 0}`);
+  }
   if (collection) {
     loadChunks(collection).catch(() => {});
     loadConnections().catch(() => {});
