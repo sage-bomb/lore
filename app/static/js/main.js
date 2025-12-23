@@ -324,6 +324,7 @@ async function analyzeDocument() {
   const fileInput = qs("docFile");
   const notes = val("docNotes").trim();
   const pasted = val("docText").trim();
+  logDoc("Starting document ingest...");
 
   if (status) status.textContent = "Reading document...";
 
@@ -333,6 +334,7 @@ async function analyzeDocument() {
       text = await readFileText(fileInput.files[0]);
     } catch (e) {
       if (status) status.textContent = "Failed to read file.";
+      logDoc("Failed to read file. See console for details.");
       console.error("File read failed", e);
       return;
     }
@@ -340,10 +342,12 @@ async function analyzeDocument() {
 
   if (!text) {
     if (status) status.textContent = "Provide a file or pasted document text.";
+    logDoc("No content provided.");
     return;
   }
 
   if (status) status.textContent = "Sending to OpenAI...";
+  logDoc("Sending request to /api/ingest/openai...");
 
   let data = {};
   try {
@@ -362,11 +366,13 @@ async function analyzeDocument() {
     if (!res.ok) {
       if (status) status.textContent = data.detail || `Ingestion failed (HTTP ${res.status}).`;
       console.error("Ingestion failed", res.status, data);
+      logDoc(`Ingestion failed: ${data.detail || res.status}`);
       return;
     }
   } catch (e) {
     if (status) status.textContent = "Network error sending to OpenAI.";
     console.error("Ingestion request error", e);
+    logDoc("Network error sending to OpenAI.");
     return;
   }
 
@@ -382,6 +388,7 @@ async function analyzeDocument() {
 
   renderDocFindings();
   if (status) status.textContent = `Ingested. Added ${data.counts?.things || 0} things, ${data.counts?.connections || 0} connections, ${data.counts?.chunks || 0} chunks.`;
+  logDoc(`Ingest complete. Things: ${data.counts?.things || 0}, Connections: ${data.counts?.connections || 0}, Chunks: ${data.counts?.chunks || 0}`);
 }
 
 function readFileText(file) {
@@ -522,3 +529,10 @@ window.queryDocs = queryDocs;
 window.loadDocs = loadDocs;
 window.deleteChunk = deleteChunk;
 window.fillFormFromCard = fillFormFromCard;
+
+function logDoc(message) {
+  const el = qs("docLog");
+  if (!el) return;
+  const ts = new Date().toLocaleTimeString();
+  el.textContent = `[${ts}] ${message}\n` + el.textContent;
+}

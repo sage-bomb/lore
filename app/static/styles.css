@@ -309,6 +309,17 @@ div.pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }
 
+.log {
+  background: rgba(15, 22, 38, 0.9);
+  color: var(--muted);
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  max-height: 220px;
+  overflow: auto;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 640px) {
   .kv { grid-template-columns: 1fr; }
   .card-header { flex-direction: column; align-items: flex-start; }
