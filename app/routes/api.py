@@ -2,7 +2,14 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.chroma_store import client, get_collection, list_collection_names, normalize_collection_name
+from app.chroma_store import (
+    client,
+    get_collection,
+    list_collection_names,
+    normalize_collection_name,
+    sanitize_metadata,
+    sanitize_metadatas,
+)
 from app.library_store import (
     delete_connection, delete_thing,
     get_connection, get_thing,
@@ -202,7 +209,7 @@ def chunks_upsert(name: str, payload: ChunksUpsert):
 
         metas.append({k: v for k, v in md.items() if v is not None})
 
-    col.upsert(ids=ids, documents=docs, metadatas=metas)
+    col.upsert(ids=ids, documents=docs, metadatas=sanitize_metadatas(metas))
     return {"ok": True, "upserted": len(ids), "collection": name}
 
 
@@ -237,6 +244,7 @@ def chunks_update(name: str, chunk_id: str, payload: ChunkUpdate):
 
     new_text = payload.text if payload.text is not None else (current_text or "")
     new_meta = payload.metadata if payload.metadata is not None else current_meta
+    new_meta = sanitize_metadata(new_meta)
 
     col.upsert(ids=[chunk_id], documents=[new_text], metadatas=[new_meta])
     return {"ok": True, "updated": chunk_id, "collection": name}

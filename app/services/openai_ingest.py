@@ -3,7 +3,7 @@ import logging
 import os
 from typing import Any, Dict, List, Tuple
 
-from app.chroma_store import get_collection, normalize_collection_name
+from app.chroma_store import get_collection, normalize_collection_name, sanitize_metadata
 from app.library_store import list_connections, list_things, upsert_connection, upsert_thing
 from app.schemas import Connection, KNOWN_THING_TYPES, Thing
 
@@ -139,9 +139,10 @@ def normalize_chunks(chunks: List[Dict[str, Any]], collection_name: str) -> Tupl
             "edge_id": ch.get("edge_id"),
             "tags": ch.get("tags") or [],
         }
+        md = {k: v for k, v in md.items() if v not in (None, [], {}, "")}
         ids.append(cid)
         texts.append(text)
-        metas.append(md)
+        metas.append(sanitize_metadata(md))
 
     logger.info(
         "OpenAI ingest: normalized chunks (incoming=%d, ready_for_upsert=%d)",
