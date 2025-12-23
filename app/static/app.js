@@ -114,7 +114,9 @@ async function upsertChunk(collection) {
 }
 
 async function queryChunks(collection) {
-  const results = qs("results");
+  const results = qs("cardsList");
+  const status = qs("cardsStatus");
+  if (status) status.textContent = "Searching...";
   results.innerHTML = "";
 
   const selectedKinds = Array.from(qs("queryChunkKind")?.selectedOptions || []).map(o => o.value);
@@ -143,11 +145,13 @@ async function queryChunks(collection) {
   const hits = await res.json().catch(() => []);
   if (!res.ok) {
     results.innerHTML = `<div class="muted">Error: ${(hits && hits.detail) ? hits.detail : "query failed"}</div>`;
+    if (status) status.textContent = "";
     return;
   }
 
   if (!hits.length) {
     results.innerHTML = `<div class="muted">No results.</div>`;
+    if (status) status.textContent = "No results.";
     return;
   }
 
@@ -175,12 +179,13 @@ async function queryChunks(collection) {
       </div>
     `;
   }).join("");
+  if (status) status.textContent = `Showing ${hits.length} result(s).`;
 }
 
 async function loadChunks(collection) {
-  const docsEl = qs("docs");
-  const msg = qs("browseMsg");
-  msg.textContent = "";
+  const docsEl = qs("cardsList");
+  const msg = qs("cardsStatus");
+  if (msg) msg.textContent = "Loading...";
   docsEl.innerHTML = "";
 
   const limit = parseOptionalInt(val("browseLimit")) || 25;
@@ -193,7 +198,7 @@ async function loadChunks(collection) {
     return;
   }
 
-  msg.textContent = `Loaded ${data.count} chunk(s).`;
+  if (msg) msg.textContent = `Loaded ${data.count} chunk(s).`;
 
   const items = data.items || [];
   if (!items.length) {
@@ -495,6 +500,16 @@ function markFinding(id, status) {
   if (idx === -1) return;
   docFindings[idx].status = status;
   renderDocFindings();
+}
+
+// ---------------- Tabs ----------------
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.tab === name);
+  });
+  document.querySelectorAll(".tab-panel").forEach(panel => {
+    panel.style.display = panel.dataset.panel === name ? "block" : "none";
+  });
 }
 
 // ---------------- Back-compat aliases ----------------
