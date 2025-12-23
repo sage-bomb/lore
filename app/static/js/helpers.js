@@ -23,6 +23,16 @@ export function parseJsonObject(s) {
   throw new Error("extra_json must be a JSON object");
 }
 
+export function safeJsonParse(value, fallback = {}) {
+  if (value === null || value === undefined || value === "") return fallback;
+  try {
+    return JSON.parse(value);
+  } catch (e) {
+    console.warn("safeJsonParse: failed to parse", e);
+    return fallback;
+  }
+}
+
 export function toList(val) {
   if (Array.isArray(val)) return val;
   if (typeof val === "string" && val.trim()) {

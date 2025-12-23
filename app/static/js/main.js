@@ -1,5 +1,5 @@
 import {
-  qs, val, splitCsv, parseOptionalInt, parseJsonObject, toList, escapeHtml
+  qs, val, splitCsv, parseOptionalInt, parseJsonObject, safeJsonParse, toList, escapeHtml
 } from "./helpers.js";
 import { cardTemplate } from "./cards.js";
 
@@ -280,17 +280,7 @@ function fillEdgeForm(edge_id, src_id, dst_id, rel_type, tags, note) {
 
 function fillFormFromCard(chunkId, text, metadataJson) {
   try {
-    let meta = {};
-    if (typeof metadataJson === "string") {
-      try {
-        meta = JSON.parse(metadataJson) || {};
-      } catch (e) {
-        console.warn("Failed to parse card metadata; using empty object", e);
-        meta = {};
-      }
-    } else {
-      meta = metadataJson || {};
-    }
+    let meta = typeof metadataJson === "string" ? safeJsonParse(metadataJson, {}) : (metadataJson || {});
 
     qs("chunkId").value = chunkId || "";
     qs("chunkKind").value = meta.chunk_kind || "thing_summary";
