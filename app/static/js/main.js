@@ -319,45 +319,64 @@ async function deleteChunk(collection, chunkId) {
 }
 
 // ---------------- Document scout (UI-only) ----------------
-function mockAnalyzeDocument() {
+async function analyzeDocument() {
   const status = qs("docStatus");
   const fileInput = qs("docFile");
-  const basis =
-    (fileInput && fileInput.files && fileInput.files[0] && fileInput.files[0].name) ||
-    val("docUrl").trim() ||
-    "sample_chapter.txt";
+  const notes = val("docNotes").trim();
+  const pasted = val("docText").trim();
 
-  const notes = val("docNotes").trim() || "characters, places, rules";
+  if (status) status.textContent = "Reading document...";
 
+  let text = pasted;
+  if (fileInput?.files?.[0]) {
+    text = await readFileText(fileInput.files[0]);
+  }
+
+  if (!text) {
+    if (status) status.textContent = "Provide a file or pasted document text.";
+    return;
+  }
+
+  if (status) status.textContent = "Sending to OpenAI...";
+
+  const res = await fetch("/api/ingest/openai", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      collection: window.collectionName || "demo_lore",
+      text,
+      notes,
+      url: val("docUrl").trim() || null
+    })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (status) status.textContent = data.detail || "Ingestion failed.";
+    return;
+  }
+
+  const chunks = data.chunks || [];
   docFindings.length = 0;
-  docFindings.push(
-    {
-      id: "finding.character",
-      title: "Character: Sahla Nareth",
-      excerpt: "Exiled navigator who hears tidesong magic and charts storm routes.",
-      tags: ["character", "magic"],
-      status: "pending",
-    },
-    {
-      id: "finding.place",
-      title: "Place: Kaar Archipelago",
-      excerpt: "Storm-linked islands where bridges appear and vanish with the tides.",
-      tags: ["place", "storm"],
-      status: "pending",
-    },
-    {
-      id: "finding.rule",
-      title: "Rule: Tidesong Navigation",
-      excerpt: "Pilots can follow harmonic tides to slip between islands faster than windships.",
-      tags: ["rule", "travel"],
-      status: "pending",
-    }
-  );
+  docFindings.push(...chunks.map((c, idx) => ({
+    id: c.chunk_id || `chunk-${idx}`,
+    title: c.chunk_id || `Chunk ${idx + 1}`,
+    excerpt: c.text || "",
+    tags: c.tags || [],
+    status: "pending"
+  })));
 
   renderDocFindings();
-  if (status) {
-    status.textContent = `Mocked analysis for "${basis}" with instructions: ${notes}`;
-  }
+  if (status) status.textContent = `Ingested. Added ${data.counts?.things || 0} things, ${data.counts?.connections || 0} connections, ${data.counts?.chunks || 0} chunks.`;
+}
+
+function readFileText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result?.toString() || "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
 }
 
 function renderDocFindings() {
@@ -472,7 +491,7 @@ window.deleteConnection = deleteConnection;
 window.loadConnections = loadConnections;
 window.fillEdgeForm = fillEdgeForm;
 window.deleteConnectionById = deleteConnectionById;
-window.mockAnalyzeDocument = mockAnalyzeDocument;
+window.analyzeDocument = analyzeDocument;
 window.markFinding = markFinding;
 window.switchTab = switchTab;
 window.openCardModal = openCardModal;

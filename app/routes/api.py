@@ -16,11 +16,14 @@ from app.schemas import (
     CollectionCreate,
     CollectionInfo,
     Connection,
+    OpenAIIngestRequest,
+    OpenAIIngestResponse,
     QueryHit,
     QueryRequest,
     Thing,
 )
 from app.ingest import ingest_text
+from app.services.openai_ingest import ingest_lore_from_text
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -84,6 +87,19 @@ def collections_delete(name: str):
         raise HTTPException(status_code=404, detail="Collection not found")
     client().delete_collection(name=safe_name)
     return {"ok": True, "deleted": safe_name}
+
+
+# ---------------- OpenAI ingest ----------------
+
+@router.post("/ingest/openai", response_model=OpenAIIngestResponse)
+def ingest_openai(payload: OpenAIIngestRequest):
+    try:
+        result = ingest_lore_from_text(payload.text, payload.collection, payload.notes)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return result
 
 
 # ---------------- Things ----------------

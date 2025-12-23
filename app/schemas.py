@@ -114,3 +114,17 @@ class QueryHit(BaseModel):
     text: Optional[str] = None
     metadata: Optional[JsonDict] = None
     distance: Optional[float] = None
+
+
+class OpenAIIngestRequest(BaseModel):
+    text: str = Field(min_length=1)
+    collection: str = Field(default="demo_lore", description="Target collection name")
+    notes: Optional[str] = Field(default=None, description="Optional guidance for extraction")
+    url: Optional[str] = Field(default=None, description="Optional source URL")
+
+
+class OpenAIIngestResponse(BaseModel):
+    counts: JsonDict
+    chunks: List[JsonDict] = Field(default_factory=list)
+    things: List[JsonDict] = Field(default_factory=list)
+    connections: List[JsonDict] = Field(default_factory=list)

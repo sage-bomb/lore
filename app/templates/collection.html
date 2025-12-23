@@ -107,19 +107,24 @@
           <h2 style="margin:0;">Document scout (OpenAI)</h2>
           <p class="card-subtitle">Upload a draft and review suggested lore snippets before accepting them.</p>
         </div>
-        <button class="ghost" onclick="mockAnalyzeDocument()">Analyze draft (UI demo)</button>
+        <button class="ghost" onclick="analyzeDocument()">Analyze draft</button>
       </div>
 
       <div class="grid two-col">
         <div class="stack">
           <label>Upload document</label>
           <input id="docFile" type="file" accept=".txt,.md,.doc,.docx,.pdf"/>
-          <div class="input-note">No upload is sent yet—this UI is a placeholder for the OpenAI integration.</div>
+          <div class="input-note">Contents are sent to the server to extract lore.</div>
         </div>
         <div class="stack">
           <label>Notes for the model</label>
           <textarea id="docNotes" rows="3" placeholder="What should the model look for? e.g., characters, locations, rules"></textarea>
         </div>
+      </div>
+
+      <div class="stack" style="margin-top:12px;">
+        <label>Paste document text (optional)</label>
+        <textarea id="docText" rows="5" placeholder="If no file is uploaded, paste text here."></textarea>
       </div>
 
       <div class="stack" style="margin-top:12px;">
