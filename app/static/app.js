@@ -360,8 +360,8 @@ function fillFormFromCard(chunkId, text, metadataJson) {
     qs("thingType").value = meta.thing_type || "";
     qs("edgeId").value = meta.edge_id || "";
     qs("chunkText").value = text || "";
-    qs("tags").value = (meta.tags || []).join(", ");
-    qs("entityIds").value = (meta.entity_ids || []).join(", ");
+    qs("tags").value = toList(meta.tags).join(", ");
+    qs("entityIds").value = toList(meta.entity_ids).join(", ");
     qs("sourceFile").value = meta.source_file || "";
     qs("sourceSection").value = meta.source_section || "";
     qs("chapterNumber").value = meta.chapter_number ?? "";
