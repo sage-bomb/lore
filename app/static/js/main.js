@@ -329,7 +329,13 @@ async function analyzeDocument() {
 
   let text = pasted;
   if (fileInput?.files?.[0]) {
-    text = await readFileText(fileInput.files[0]);
+    try {
+      text = await readFileText(fileInput.files[0]);
+    } catch (e) {
+      if (status) status.textContent = "Failed to read file.";
+      console.error("File read failed", e);
+      return;
+    }
   }
 
   if (!text) {
@@ -339,20 +345,28 @@ async function analyzeDocument() {
 
   if (status) status.textContent = "Sending to OpenAI...";
 
-  const res = await fetch("/api/ingest/openai", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      collection: window.collectionName || "demo_lore",
-      text,
-      notes,
-      url: val("docUrl").trim() || null
-    })
-  });
+  let data = {};
+  try {
+    const res = await fetch("/api/ingest/openai", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        collection: window.collectionName || "demo_lore",
+        text,
+        notes,
+        url: val("docUrl").trim() || null
+      })
+    });
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    if (status) status.textContent = data.detail || "Ingestion failed.";
+    data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (status) status.textContent = data.detail || `Ingestion failed (HTTP ${res.status}).`;
+      console.error("Ingestion failed", res.status, data);
+      return;
+    }
+  } catch (e) {
+    if (status) status.textContent = "Network error sending to OpenAI.";
+    console.error("Ingestion request error", e);
     return;
   }
 
