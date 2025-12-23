@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.chroma_store import client, get_collection, list_collection_names
+from app.chroma_store import client, get_collection, list_collection_names, normalize_collection_name
 from app.library_store import (
     delete_connection, delete_thing,
     get_connection, get_thing,
@@ -16,11 +16,14 @@ from app.schemas import (
     CollectionCreate,
     CollectionInfo,
     Connection,
+    OpenAIIngestRequest,
+    OpenAIIngestResponse,
     QueryHit,
     QueryRequest,
     Thing,
 )
 from app.ingest import ingest_text
+from app.services.openai_ingest import ingest_lore_from_text
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -53,25 +56,50 @@ def collections_list():
 
 @router.post("/collections", response_model=CollectionInfo)
 def collections_create(payload: CollectionCreate):
-    col = get_collection(payload.name)
+    try:
+        safe_name = normalize_collection_name(payload.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    col = get_collection(safe_name)
     return {"name": col.name}
 
 
 @router.get("/collections/{name}", response_model=CollectionInfo)
 def collections_get(name: str):
+    try:
+        safe_name = normalize_collection_name(name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     existing = set(list_collection_names())
-    if name not in existing:
+    if safe_name not in existing:
         raise HTTPException(status_code=404, detail="Collection not found")
-    return {"name": name}
+    return {"name": safe_name}
 
 
 @router.delete("/collections/{name}")
 def collections_delete(name: str):
+    try:
+        safe_name = normalize_collection_name(name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     existing = set(list_collection_names())
-    if name not in existing:
+    if safe_name not in existing:
         raise HTTPException(status_code=404, detail="Collection not found")
-    client().delete_collection(name=name)
-    return {"ok": True, "deleted": name}
+    client().delete_collection(name=safe_name)
+    return {"ok": True, "deleted": safe_name}
+
+
+# ---------------- OpenAI ingest ----------------
+
+@router.post("/ingest/openai", response_model=OpenAIIngestResponse)
+def ingest_openai(payload: OpenAIIngestRequest):
+    try:
+        result = ingest_lore_from_text(payload.text, payload.collection, payload.notes)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return result
 
 
 # ---------------- Things ----------------

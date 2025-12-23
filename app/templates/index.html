@@ -1,73 +1,73 @@
 {% extends "base.html" %}
 {% block content %}
   <section class="hero">
-    <h1>Build a living lore workspace</h1>
-    <p>Organize chapters, characters, rules, and connections in focused collections. Add chunks, search across them, and keep your universe coherent.</p>
-    <div class="pill-row" style="margin-top:12px;">
-      <span class="pill">Fast create</span>
-      <span class="pill">Chunk-first search</span>
-      <span class="pill">Metadata friendly</span>
+    <div>
+      <div class="eyebrow">Spellbinder</div>
+      <h1>Keep lore organized, searchable, and connected</h1>
+      <p>Build dark-mode collections that feel like a workspace, not a spreadsheet. Add lore cards, search by meaning, and map relationships between characters, places, and rules.</p>
+      <div class="pill-row" style="margin-top:12px;">
+        <span class="pill">One-click collection create</span>
+        <span class="pill">Card-based lore editing</span>
+        <span class="pill">Connections built-in</span>
+      </div>
+    </div>
+    <div class="grid two-col">
+      <div class="hero-card">
+        <div class="small-label">Quick create</div>
+        <div class="row" style="margin-top:8px;">
+          <input id="newCollectionName" type="text" placeholder="e.g. astral_archives" />
+          <button onclick="createCollection()">Create</button>
+        </div>
+        <div id="createCollectionMsg" class="muted"></div>
+      </div>
+      <div class="hero-card">
+        <div class="small-label">Fast facts</div>
+        <div class="kv" style="margin-top:8px;">
+          <div class="label">Mode</div><div>Dark, distraction free</div>
+          <div class="label">Editing</div><div>Inline lore cards</div>
+          <div class="label">Connections</div><div>Upsert &amp; delete in one view</div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section class="section-columns">
-    <div class="card">
-      <div class="section-title">
-        <h2>Create a collection</h2>
-        <span class="hint">Name it after your world, project, or season.</span>
-      </div>
-      <div class="stack">
-        <input id="newCollectionName" type="text" placeholder="e.g. astral_archives or season_02" />
-        <div class="row">
-          <button onclick="createCollection()">Create collection</button>
-          <div id="createCollectionMsg" class="muted"></div>
-        </div>
-      </div>
+  <section class="card highlight">
+    <div class="section-title">
+      <h2>Jump into a collection</h2>
+      <span class="hint">Every collection holds your lore cards and connections.</span>
     </div>
-
-    <div class="card">
-      <div class="section-title">
-        <h2>Open an existing one</h2>
-        <span class="hint">Jump back into a workspace.</span>
+    {% if collections %}
+      <div class="card-grid">
+        {% for c in collections %}
+          <a class="card" style="text-decoration:none; color:inherit; padding:14px;" href="/c/{{ c }}">
+            <div class="small-label">Collection</div>
+            <div style="font-weight:700; font-size:1.08rem;">{{ c }}</div>
+            <div class="muted" style="margin-top:6px;">Open, edit lore cards, manage connections</div>
+          </a>
+        {% endfor %}
       </div>
-      {% if collections %}
-        <div class="card-grid">
-          {% for c in collections %}
-            <a class="card" style="text-decoration:none; color:inherit; padding:14px;" href="/c/{{ c }}">
-              <div class="small-label">Collection</div>
-              <div style="font-weight:700; font-size:1.05rem;">{{ c }}</div>
-              <div class="muted" style="margin-top:6px;">Open &amp; manage chunks</div>
-            </a>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div class="muted">No collections yet. Create one to get started.</div>
-      {% endif %}
-    </div>
+    {% else %}
+      <div class="muted">No collections yet. Create one above to get started.</div>
+    {% endif %}
   </section>
 
   <section class="card">
     <div class="section-title">
-      <h2>How collections work</h2>
-      <span class="hint">Chunk-based by design.</span>
+      <h2>How this workspace thinks</h2>
+      <span class="hint">Chunk-first and connection-friendly.</span>
     </div>
-    <div class="stack">
-      <div class="muted">
-        Collections store <strong>chunks</strong> (embedding units) rather than raw documents. Each chunk is a focused idea: a character summary, a scene excerpt, a rule, or a relationship edge.
+    <div class="card-grid">
+      <div class="item">
+        <div class="small-label">Lore cards</div>
+        <div class="muted">Each card is a chunk: character summaries, chapter beats, rule notes.</div>
       </div>
-      <div class="card-grid">
-        <div class="item">
-          <div class="small-label">Story building</div>
-          <div class="muted">Keep chapters and scenes tidy with chunked text.</div>
-        </div>
-        <div class="item">
-          <div class="small-label">Knowledge graph</div>
-          <div class="muted">Tag things, link edges, and filter by metadata.</div>
-        </div>
-        <div class="item">
-          <div class="small-label">Searchable memory</div>
-          <div class="muted">Semantic search across everything you’ve stored.</div>
-        </div>
+      <div class="item">
+        <div class="small-label">Meaningful search</div>
+        <div class="muted">Semantic queries with filters for type, tags, or specific IDs.</div>
+      </div>
+      <div class="item">
+        <div class="small-label">Connections</div>
+        <div class="muted">Link people, places, and things. Upsert or delete edges in one view.</div>
       </div>
     </div>
   </section>
