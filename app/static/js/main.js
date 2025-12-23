@@ -322,6 +322,7 @@ async function deleteChunk(collection, chunkId) {
 async function analyzeDocument() {
   const status = qs("docStatus");
   const fileInput = qs("docFile");
+  const collection = window.collectionName || "demo_lore";
   const notes = val("docNotes").trim();
   const pasted = val("docText").trim();
   logDoc("Starting document ingest...");
@@ -355,7 +356,7 @@ async function analyzeDocument() {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
-        collection: window.collectionName || "demo_lore",
+        collection,
         text,
         notes,
         url: val("docUrl").trim() || null
@@ -389,6 +390,10 @@ async function analyzeDocument() {
   renderDocFindings();
   if (status) status.textContent = `Ingested. Added ${data.counts?.things || 0} things, ${data.counts?.connections || 0} connections, ${data.counts?.chunks || 0} chunks.`;
   logDoc(`Ingest complete. Things: ${data.counts?.things || 0}, Connections: ${data.counts?.connections || 0}, Chunks: ${data.counts?.chunks || 0}`);
+  if (collection) {
+    loadChunks(collection).catch(() => {});
+    loadConnections().catch(() => {});
+  }
 }
 
 function readFileText(file) {
