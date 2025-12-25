@@ -24,6 +24,7 @@
   <div class="tabs">
     <button class="tab active" data-tab="lore" onclick="switchTab('lore')">Lore cards</button>
     <button class="tab" data-tab="doc" onclick="switchTab('doc')">Document scout</button>
+    <button class="tab" data-tab="chunking" onclick="switchTab('chunking')">Chunk review</button>
     <button class="tab" data-tab="connections" onclick="switchTab('connections')">Connections</button>
   </div>
 
@@ -100,7 +101,7 @@
     </section>
   </div>
 
-  <div class="tab-panel" data-panel="doc">
+  <div class="tab-panel" data-panel="doc" style="display:none;">
     <section class="card">
       <div class="card-header">
         <div>
@@ -139,7 +140,108 @@
     </section>
   </div>
 
-  <div class="tab-panel" data-panel="connections">
+  <div class="tab-panel" data-panel="chunking" style="display:none;">
+    <section class="card" id="chunkReviewPanel">
+      <div class="card-header">
+        <div>
+          <h2 style="margin:0;">Chunk review &amp; boundaries</h2>
+          <p class="card-subtitle">Detect candidate chunks, adjust boundaries, and embed finalized slices.</p>
+        </div>
+        <div class="row">
+          <button class="ghost" id="chunkSaveDraftBtn">Save draft</button>
+          <button id="chunkSaveEmbedBtn">Save + Embed</button>
+        </div>
+      </div>
+
+      <div class="grid two-col" style="margin-bottom:12px;">
+        <div class="stack">
+          <label>Document ID</label>
+          <div class="row" style="align-items:flex-end;">
+            <input id="chunkDocId" type="text" placeholder="doc.example.chapter1"/>
+            <button class="ghost" id="chunkLoadBtn">Load by ID</button>
+          </div>
+          <div class="input-note">IDs persist drafts; provide one when detecting chunks.</div>
+        </div>
+        <div class="stack">
+          <label>Chunk metadata defaults (for embedding)</label>
+          <div class="grid three-col" style="gap:8px;">
+            <div class="stack">
+              <span class="mini-label">Chunk kind</span>
+              <select id="chunkDefaultKind">
+                <option value="chapter_text">chapter_text</option>
+                <option value="scene_text">scene_text</option>
+                <option value="thing_summary">thing_summary</option>
+                <option value="thing_notes">thing_notes</option>
+                <option value="misc">misc</option>
+              </select>
+            </div>
+            <div class="stack">
+              <span class="mini-label">Thing ID (optional)</span>
+              <input id="chunkDefaultThingId" type="text" placeholder="character.sahla"/>
+            </div>
+            <div class="stack">
+              <span class="mini-label">Thing type (optional)</span>
+              <input id="chunkDefaultThingType" type="text" placeholder="character"/>
+            </div>
+            <div class="stack">
+              <span class="mini-label">Tags (comma separated)</span>
+              <input id="chunkDefaultTags" type="text" placeholder="chapter, draft"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <label>Document text</label>
+        <textarea id="chunkDocText" rows="6" placeholder="Paste or load document text..."></textarea>
+        <div class="row" style="justify-content:space-between;">
+          <div class="row">
+            <button class="ghost" id="chunkDetectBtn">Detect chunks</button>
+            <div class="pill">Calls /api/chunking/detect</div>
+          </div>
+          <div class="row">
+            <div class="stack mini">
+              <span class="mini-label">Min chars</span>
+              <input id="chunkMinChars" type="number" value="400" style="width:120px;"/>
+            </div>
+            <div class="stack mini">
+              <span class="mini-label">Target chars</span>
+              <input id="chunkTargetChars" type="number" value="800" style="width:120px;"/>
+            </div>
+            <div class="stack mini">
+              <span class="mini-label">Max chars</span>
+              <input id="chunkMaxChars" type="number" value="1200" style="width:120px;"/>
+            </div>
+            <div class="stack mini">
+              <span class="mini-label">Overlap</span>
+              <input id="chunkOverlap" type="number" value="0" style="width:100px;"/>
+            </div>
+          </div>
+        </div>
+        <div id="chunkStatus" class="muted">Paste text or load by document ID to begin.</div>
+      </div>
+
+      <div class="grid two-col" style="margin-top:12px;">
+        <div class="stack">
+          <label>Document with chunk overlays</label>
+          <div class="chunk-viewport" id="chunkViewport" aria-label="Chunk review viewport"></div>
+          <div class="row" style="margin-top:6px; justify-content:space-between;">
+            <div class="muted" id="chunkStats"></div>
+            <div class="row" style="gap:8px;">
+              <button class="ghost" id="chunkSelectionBtn">Create chunk from selection</button>
+              <button class="secondary" id="chunkScrollTopBtn">Scroll to start</button>
+            </div>
+          </div>
+        </div>
+        <div class="stack">
+          <label>Chunk list &amp; handles</label>
+          <div id="chunkList" class="chunk-list"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="tab-panel" data-panel="connections" style="display:none;">
     <section class="card">
       <div class="card-header">
         <div>
@@ -287,4 +389,5 @@
   <script>
     window.collectionName = {{ collection | tojson }};
   </script>
+  <script type="module" src="/static/js/chunk-review.js"></script>
 {% endblock %}
