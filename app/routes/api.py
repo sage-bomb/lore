@@ -16,7 +16,7 @@ from app.library_store import (
     list_connections, list_things,
     upsert_connection, upsert_thing,
 )
-from app.chunk_store import store_chunks
+from app.chunk_store import get_chunks, store_chunks
 from app.schemas import (
     ChunkOut,
     ChunkUpdate,
@@ -429,7 +429,7 @@ def chunking_detect(payload: ChunkDetectionRequest):
 def chunking_finalize(payload: ChunkFinalizeRequest):
     if any(c.doc_id != payload.doc_id for c in payload.chunks):
         raise HTTPException(status_code=400, detail="All chunks must share the doc_id provided.")
-    version, finalized = store_chunks(payload.doc_id, payload.chunks, finalized=True)
+    version, finalized = store_chunks(payload.doc_id, payload.chunks, finalized=payload.finalized, text=payload.text)
     return {
         "ok": True,
         "doc_id": payload.doc_id,
@@ -437,6 +437,14 @@ def chunking_finalize(payload: ChunkFinalizeRequest):
         "finalized": finalized,
         "count": len(payload.chunks),
     }
+
+
+@router.get("/chunking/documents/{doc_id}")
+def chunking_document(doc_id: str):
+    doc = get_chunks(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return doc
 
 
 # -----------------------------------------------------------------------------

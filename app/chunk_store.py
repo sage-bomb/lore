@@ -33,7 +33,12 @@ def save_chunk_store(data: Dict[str, dict]) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def store_chunks(doc_id: str, chunks: list[ChunkMetadata], finalized: bool = False) -> Tuple[int, bool]:
+def store_chunks(
+    doc_id: str,
+    chunks: list[ChunkMetadata],
+    finalized: bool = False,
+    text: Optional[str] = None,
+) -> Tuple[int, bool]:
     data = load_chunk_store()
     docs = data.setdefault("docs", {})
     existing = docs.get(doc_id, {})
@@ -42,6 +47,7 @@ def store_chunks(doc_id: str, chunks: list[ChunkMetadata], finalized: bool = Fal
     docs[doc_id] = {
         "version": version,
         "finalized": finalized,
+        "text": text if text is not None else existing.get("text"),
         "chunks": [c.model_dump(mode="json") for c in stored_chunks],
     }
     save_chunk_store(data)
@@ -57,5 +63,6 @@ def get_chunks(doc_id: str) -> Optional[dict]:
         "doc_id": doc_id,
         "version": int(doc.get("version", 1)),
         "finalized": bool(doc.get("finalized", False)),
+        "text": doc.get("text"),
         "chunks": [ChunkMetadata.model_validate(c) for c in doc.get("chunks", [])],
     }

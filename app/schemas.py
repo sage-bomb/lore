@@ -166,3 +166,5 @@ class ChunkMetadata(BaseModel):
 class ChunkFinalizeRequest(BaseModel):
     doc_id: str = Field(min_length=1)
     chunks: List[ChunkMetadata]
+    text: Optional[str] = Field(default=None, description="Optional raw document text to store alongside chunks.")
+    finalized: bool = Field(default=True, description="Whether the chunk set is finalized/embedded.")
