@@ -69,6 +69,8 @@ class SearchChunk(BaseModel):
     chunk_id: str = Field(min_length=1)
     text: str = Field(min_length=1)
 
+    doc_id: Optional[str] = None
+    doc_url: Optional[str] = None
     chunk_kind: ChunkKind = "thing_summary"
     thing_id: Optional[str] = None
     thing_type: Optional[str] = None
@@ -121,6 +123,10 @@ class OpenAIIngestRequest(BaseModel):
     collection: str = Field(default="demo_lore", description="Target collection name")
     notes: Optional[str] = Field(default=None, description="Optional guidance for extraction")
     url: Optional[str] = Field(default=None, description="Optional source URL")
+    doc_id: Optional[str] = Field(default=None, description="Stable identifier for the document")
+    source_file: Optional[str] = Field(default=None, description="Source filename if available")
+    source_section: Optional[str] = Field(default=None, description="Logical section within the source")
+    reuse_saved: bool = Field(default=True, description="Reuse stored chunks for this doc_id if present")
 
 
 class OpenAIIngestResponse(BaseModel):
@@ -128,3 +134,14 @@ class OpenAIIngestResponse(BaseModel):
     chunks: List[JsonDict] = Field(default_factory=list)
     things: List[JsonDict] = Field(default_factory=list)
     connections: List[JsonDict] = Field(default_factory=list)
+    doc_id: Optional[str] = None
+    used_saved_chunks: bool = False
+
+
+class OpenAIChunksFinalizeRequest(BaseModel):
+    collection: str
+    doc_id: str = Field(min_length=1)
+    chunks: List[SearchChunk]
+    source_file: Optional[str] = None
+    source_section: Optional[str] = None
+    url: Optional[str] = None

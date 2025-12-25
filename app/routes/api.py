@@ -16,6 +16,7 @@ from app.schemas import (
     CollectionCreate,
     CollectionInfo,
     Connection,
+    OpenAIChunksFinalizeRequest,
     OpenAIIngestRequest,
     OpenAIIngestResponse,
     QueryHit,
@@ -23,7 +24,7 @@ from app.schemas import (
     Thing,
 )
 from app.ingest import ingest_text
-from app.services.openai_ingest import ingest_lore_from_text
+from app.services.openai_ingest import finalize_chunks_for_doc, ingest_lore_from_text
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -94,7 +95,35 @@ def collections_delete(name: str):
 @router.post("/ingest/openai", response_model=OpenAIIngestResponse)
 def ingest_openai(payload: OpenAIIngestRequest):
     try:
-        result = ingest_lore_from_text(payload.text, payload.collection, payload.notes)
+        result = ingest_lore_from_text(
+            payload.text,
+            payload.collection,
+            payload.notes,
+            doc_id=payload.doc_id,
+            source_file=payload.source_file,
+            source_section=payload.source_section,
+            url=payload.url,
+            persist_chunks=False,
+            reuse_saved=payload.reuse_saved,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return result
+
+
+@router.post("/ingest/openai/finalize")
+def ingest_openai_finalize(payload: OpenAIChunksFinalizeRequest):
+    try:
+        result = finalize_chunks_for_doc(
+            payload.collection,
+            [c.model_dump(mode="python") for c in payload.chunks],
+            doc_id=payload.doc_id,
+            source_file=payload.source_file,
+            source_section=payload.source_section,
+            url=payload.url,
+        )
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     except ValueError as exc:
@@ -183,6 +212,8 @@ def chunks_upsert(name: str, payload: ChunksUpsert):
         thing_id = c.thing_id or getattr(c, "record_id", None)
 
         md: Dict[str, Any] = {
+            "doc_id": getattr(c, "doc_id", None),
+            "doc_url": getattr(c, "doc_url", None),
             "chunk_kind": chunk_kind,
             "thing_id": thing_id,
             "thing_type": thing_type,

@@ -4,6 +4,13 @@ import {
 import { cardTemplate } from "./cards.js";
 
 const docFindings = [];
+const docIngestState = {
+  collection: null,
+  docId: null,
+  sourceFile: null,
+  sourceSection: null,
+  url: null,
+};
 
 // ---------------- Collections ----------------
 
@@ -324,6 +331,9 @@ async function analyzeDocument() {
   const fileInput = qs("docFile");
   const notes = val("docNotes").trim();
   const pasted = val("docText").trim();
+  const docIdInput = val("docId").trim();
+  const sourceFile = val("docSourceFile").trim();
+  const sourceSection = val("docSourceSection").trim();
   logDoc("Starting document ingest...");
 
   if (status) status.textContent = "Reading document...";
@@ -349,16 +359,27 @@ async function analyzeDocument() {
   if (status) status.textContent = "Sending to OpenAI...";
   logDoc("Sending request to /api/ingest/openai...");
 
+  const collection = window.collectionName || "demo_lore";
+  docIngestState.collection = collection;
+  docIngestState.docId = docIdInput || null;
+  docIngestState.sourceFile = sourceFile || null;
+  docIngestState.sourceSection = sourceSection || null;
+  docIngestState.url = val("docUrl").trim() || null;
+
   let data = {};
   try {
     const res = await fetch("/api/ingest/openai", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
-        collection: window.collectionName || "demo_lore",
+        collection,
         text,
         notes,
-        url: val("docUrl").trim() || null
+        url: docIngestState.url,
+        doc_id: docIdInput || null,
+        source_file: docIngestState.sourceFile,
+        source_section: docIngestState.sourceSection,
+        reuse_saved: true
       })
     });
 
@@ -377,18 +398,33 @@ async function analyzeDocument() {
   }
 
   const chunks = data.chunks || [];
+  docIngestState.docId = data.doc_id || docIdInput || null;
   docFindings.length = 0;
   docFindings.push(...chunks.map((c, idx) => ({
     id: c.chunk_id || `chunk-${idx}`,
     title: c.chunk_id || `Chunk ${idx + 1}`,
     excerpt: c.text || "",
     tags: c.tags || [],
-    status: "pending"
+    status: data.used_saved_chunks ? "accepted" : "pending",
+    chunk: {
+      ...c,
+      chunk_id: c.chunk_id || `chunk-${idx}`,
+      text: c.text || "",
+      doc_id: c.doc_id || docIngestState.docId || null,
+      doc_url: c.doc_url || docIngestState.url || null,
+      source_file: c.source_file || docIngestState.sourceFile || null,
+      source_section: c.source_section || docIngestState.sourceSection || null,
+    }
   })));
 
+  const detected = data.counts?.chunks_detected ?? chunks.length;
   renderDocFindings();
-  if (status) status.textContent = `Ingested. Added ${data.counts?.things || 0} things, ${data.counts?.connections || 0} connections, ${data.counts?.chunks || 0} chunks.`;
-  logDoc(`Ingest complete. Things: ${data.counts?.things || 0}, Connections: ${data.counts?.connections || 0}, Chunks: ${data.counts?.chunks || 0}`);
+  if (status) status.textContent = `Detected ${detected} chunk(s). Accept edits before saving embeddings. Doc ID: ${docIngestState.docId || "n/a"}.`;
+  if (data.used_saved_chunks) {
+    logDoc("Loaded saved chunk config for this document. Adjust and save to re-embed.");
+  } else {
+    logDoc(`Detection complete. Things: ${data.counts?.things || 0}, Connections: ${data.counts?.connections || 0}, Chunks detected: ${detected}`);
+  }
 }
 
 function readFileText(file) {
@@ -446,6 +482,65 @@ function markFinding(id, status) {
   if (idx === -1) return;
   docFindings[idx].status = status;
   renderDocFindings();
+}
+
+async function saveAcceptedFindings() {
+  const status = qs("docStatus");
+  if (!docFindings.length) {
+    if (status) status.textContent = "Run analysis before saving chunks.";
+    return;
+  }
+  const accepted = docFindings.filter((f) => f.status === "accepted");
+  if (!accepted.length) {
+    if (status) status.textContent = "Accept at least one chunk to embed.";
+    return;
+  }
+  if (!docIngestState.collection || !docIngestState.docId) {
+    if (status) status.textContent = "Missing collection or doc id; re-run analysis.";
+    return;
+  }
+
+  if (status) status.textContent = "Saving accepted chunks...";
+  const payload = {
+    collection: docIngestState.collection,
+    doc_id: docIngestState.docId,
+    source_file: docIngestState.sourceFile,
+    source_section: docIngestState.sourceSection,
+    url: docIngestState.url,
+    chunks: accepted.map((f) => ({
+      chunk_id: f.chunk?.chunk_id || f.id,
+      text: f.chunk?.text || f.excerpt || "",
+      chunk_kind: f.chunk?.chunk_kind || "thing_summary",
+      thing_id: f.chunk?.thing_id || null,
+      thing_type: f.chunk?.thing_type || null,
+      edge_id: f.chunk?.edge_id || null,
+      tags: f.chunk?.tags || f.tags || [],
+      entity_ids: f.chunk?.entity_ids || [],
+      doc_id: docIngestState.docId,
+      doc_url: docIngestState.url,
+      source_file: docIngestState.sourceFile,
+      source_section: docIngestState.sourceSection,
+    })),
+  };
+
+  try {
+    const res = await fetch("/api/ingest/openai/finalize", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (status) status.textContent = data.detail || "Failed to save chunks.";
+      logDoc(`Save failed: ${data.detail || res.statusText}`);
+      return;
+    }
+    if (status) status.textContent = `Saved ${data.upserted || 0} chunk(s) to ${payload.collection}.`;
+    logDoc(`Embedded ${data.upserted || 0} chunk(s) for doc ${docIngestState.docId}.`);
+  } catch (e) {
+    if (status) status.textContent = "Network error saving chunks.";
+    console.error("Finalize error", e);
+  }
 }
 
 // ---------------- Tabs & Modal ----------------
@@ -521,6 +616,7 @@ window.fillEdgeForm = fillEdgeForm;
 window.deleteConnectionById = deleteConnectionById;
 window.analyzeDocument = analyzeDocument;
 window.markFinding = markFinding;
+window.saveAcceptedFindings = saveAcceptedFindings;
 window.switchTab = switchTab;
 window.openCardModal = openCardModal;
 window.closeCardModal = closeCardModal;

@@ -107,7 +107,6 @@
           <h2 style="margin:0;">Document scout (OpenAI)</h2>
           <p class="card-subtitle">Upload a draft and review suggested lore snippets before accepting them.</p>
         </div>
-        <button class="ghost" id="analyzeDocBtn">Analyze draft</button>
       </div>
 
       <div class="grid two-col">
@@ -132,8 +131,27 @@
         <input id="docUrl" type="text" placeholder="Paste a link to a chapter or doc (UI only)"/>
       </div>
 
+      <div class="grid two-col" style="margin-top:12px;">
+        <div class="stack">
+          <label>Document ID (optional)</label>
+          <input id="docId" type="text" placeholder="doc.chapter.1"/>
+          <div class="input-note">Stable ids let you reuse saved chunk configs on re-ingest.</div>
+        </div>
+        <div class="stack">
+          <label>Source file / section (optional)</label>
+          <div class="row" style="gap:10px;">
+            <input id="docSourceFile" type="text" placeholder="source_file"/>
+            <input id="docSourceSection" type="text" placeholder="section"/>
+          </div>
+        </div>
+      </div>
+
       <div class="divider"></div>
-      <div id="docStatus" class="muted">Press analyze to send this document to OpenAI.</div>
+      <div id="docStatus" class="muted">Press analyze to detect chunks, then accept and save to embed.</div>
+      <div class="row" style="gap:10px; margin-top:8px;">
+        <button class="ghost" id="analyzeDocBtn">Analyze draft</button>
+        <button onclick="saveAcceptedFindings()">Save accepted chunks</button>
+      </div>
       <pre id="docLog" class="log" aria-live="polite"></pre>
       <div id="docResults" class="card-list" style="margin-top:12px;"></div>
     </section>

@@ -25,18 +25,24 @@ def main() -> None:
     parser.add_argument("--file", type=Path, help="Path to a document file")
     parser.add_argument("--text", type=str, help="Inline document text")
     parser.add_argument("--collection", default="demo_lore", help="Chroma collection name to upsert chunks into")
+    parser.add_argument("--doc-id", dest="doc_id", default=None, help="Optional stable document id")
     args = parser.parse_args()
 
     doc_text = load_text(args.file, args.text) if (args.file or args.text) else ""
     if not doc_text.strip():
         raise SystemExit("Provide --file or --text with content.")
 
-    extracted = ingest_lore_from_text(doc_text, args.collection)
+    extracted = ingest_lore_from_text(
+        doc_text,
+        args.collection,
+        doc_id=args.doc_id,
+        persist_chunks=True,
+    )
     print("Extraction complete.")
     print(json.dumps({
         "things_added": extracted["counts"]["things"],
         "connections_added": extracted["counts"]["connections"],
-        "chunks_added": extracted["counts"]["chunks"],
+        "chunks_added": extracted["counts"]["chunks_embedded"],
     }, indent=2))
 
 
