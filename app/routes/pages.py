@@ -21,3 +21,10 @@ def collection_page(name: str, request: Request):
         {"request": request, "collection": name},
     )
 
+
+@router.get("/chunk-review", response_class=HTMLResponse)
+def chunk_review(request: Request, collection: str | None = None):
+    return templates.TemplateResponse(
+        "chunk_review.html",
+        {"request": request, "collection": collection},
+    )

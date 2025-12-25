@@ -62,6 +62,26 @@ ChunkKind = Literal[
     "chapter_text", "scene_text", "rule_text", "misc"
 ]
 
+
+class ChunkBoundary(BaseModel):
+    chunk_id: Optional[str] = None
+    start_line: int = Field(ge=0)
+    end_line: int = Field(ge=0)
+    chunk_kind: Optional[ChunkKind] = None
+    thing_id: Optional[str] = None
+    thing_type: Optional[str] = None
+    edge_id: Optional[str] = None
+    chapter_number: Optional[int] = None
+    scene_id: Optional[str] = None
+    pov: Optional[str] = None
+    location_id: Optional[str] = None
+    entity_ids: List[str] = Field(default_factory=list)
+    tags: List[str] = Field(default_factory=list)
+    source_file: Optional[str] = None
+    source_section: Optional[str] = None
+    extra: Optional[Dict[str, Any]] = None
+    text: Optional[str] = None
+
 class SearchChunk(BaseModel):
     """One embedding unit stored in Chroma. Keep metadata flat and filter-friendly."""
     model_config = ConfigDict(extra="allow")
@@ -86,6 +106,36 @@ class SearchChunk(BaseModel):
 
 class ChunksUpsert(BaseModel):
     chunks: List[SearchChunk]
+
+
+class ChunkingDetectRequest(BaseModel):
+    text: Optional[str] = Field(default=None, description="Document text, if available")
+    doc_id: Optional[str] = Field(default=None, description="Optional doc_id used to fetch text when text is null")
+    collection: Optional[str] = Field(default=None, description="Collection name used for doc lookup")
+    chunk_kind: Optional[ChunkKind] = None
+
+
+class ChunkingDetectResponse(BaseModel):
+    text: str
+    line_count: int
+    chunks: List[ChunkBoundary]
+
+
+class ChunkingFinalizeRequest(BaseModel):
+    text: Optional[str] = None
+    doc_id: Optional[str] = None
+    collection: str
+    chunks: List[ChunkBoundary]
+    embed: bool = True
+    default_chunk_kind: Optional[ChunkKind] = None
+
+
+class ChunkingFinalizeResponse(BaseModel):
+    saved: int
+    embedded: bool
+    collection: str
+    chunk_ids: List[str] = Field(default_factory=list)
+    draft_key: Optional[str] = None
 
 
 class ChunkOut(BaseModel):

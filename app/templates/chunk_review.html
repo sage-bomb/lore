@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Chunk reviewer</div>
+      <h1>Chunk boundaries</h1>
+      <p>Load text, adjust chunk boundaries with handles, then save as draft or embed.</p>
+      <div class="pill-row" style="margin-top:8px;">
+        <span class="pill">Split/merge chunks</span>
+        <span class="pill">Virtualized text</span>
+        <span class="pill">Draft or embed</span>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="small-label">Quick actions</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="ghost" id="detectBtn">Detect chunks</button>
+        <button class="ghost" id="saveDraftBtn">Save draft</button>
+        <button id="saveEmbedBtn">Save + embed</button>
+      </div>
+      <div class="muted" style="margin-top:8px;" id="chunkStatus">Load text to begin.</div>
+    </div>
+  </section>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="input" onclick="switchChunkTab('input')">Source</button>
+    <button class="tab" data-tab="review" onclick="switchChunkTab('review')">Chunk review</button>
+  </div>
+
+  <div class="tab-panel" data-panel="input" style="display:block;">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2 style="margin:0;">Provide text</h2>
+          <p class="card-subtitle">Paste source text or load by doc_id from a collection.</p>
+        </div>
+      </div>
+
+      <div class="grid two-col">
+        <div class="stack">
+          <label>Collection (optional for lookup)</label>
+          <input id="chunkCollection" type="text" placeholder="demo_lore"/>
+        </div>
+        <div class="stack">
+          <label>Doc ID (optional)</label>
+          <input id="chunkDocId" type="text" placeholder="chunk.chapter.1"/>
+        </div>
+      </div>
+
+      <div class="grid two-col" style="margin-top:12px;">
+        <div class="stack">
+          <label>Default chunk kind</label>
+          <select id="defaultChunkKind">
+            <option value="chapter_text">chapter_text</option>
+            <option value="scene_text">scene_text</option>
+            <option value="thing_notes">thing_notes</option>
+            <option value="rule_text">rule_text</option>
+            <option value="misc">misc</option>
+          </select>
+        </div>
+        <div class="stack">
+          <label>Optional tags (comma separated)</label>
+          <input id="defaultTags" type="text" placeholder="draft,chapter1"/>
+        </div>
+      </div>
+
+      <div class="stack" style="margin-top:12px;">
+        <label>Document text</label>
+        <textarea id="chunkSource" rows="8" placeholder="Paste text here or load by doc id."></textarea>
+        <div class="input-note">Detecting chunks uses this text when present; doc_id lookup is used when empty.</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="tab-panel" data-panel="review">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2 style="margin:0;">Chunks</h2>
+          <p class="card-subtitle">Click a chunk to adjust start/end lines or merge/split.</p>
+        </div>
+      </div>
+
+      <div class="row" style="gap:12px; margin-bottom:10px;">
+        <button class="ghost" id="mergeBtn">Merge with next</button>
+        <button class="ghost" id="splitBtn">Split selection</button>
+        <div class="muted" id="selectedMeta">No chunk selected.</div>
+      </div>
+
+      <div class="chunker" id="chunkViewport">
+        <div class="chunk-lines" id="chunkLines" aria-live="polite"></div>
+      </div>
+    </section>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    window.collectionName = {{ collection | tojson if collection is defined else 'null' }};
+  </script>
+  <script type="module" src="/static/js/chunk-review.js"></script>
+{% endblock %}

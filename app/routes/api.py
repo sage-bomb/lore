@@ -21,9 +21,14 @@ from app.schemas import (
     QueryHit,
     QueryRequest,
     Thing,
+    ChunkingDetectRequest,
+    ChunkingDetectResponse,
+    ChunkingFinalizeRequest,
+    ChunkingFinalizeResponse,
 )
 from app.ingest import ingest_text
 from app.services.openai_ingest import ingest_lore_from_text
+from app.services import chunking as chunking_service
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -334,6 +339,50 @@ def ingest_api(payload: Dict[str, Any]):
         "connections": [c.model_dump(mode="json") for c in stored_connections],
         "chunks": [c.model_dump(mode="json") for c in chunks],
     }
+
+
+# ---------------- Chunking UX helpers ----------------
+
+
+@router.post("/chunking/detect", response_model=ChunkingDetectResponse)
+def chunking_detect(payload: ChunkingDetectRequest):
+    if not (payload.text or payload.doc_id):
+        raise HTTPException(status_code=400, detail="Provide text or doc_id")
+
+    try:
+        text = payload.text
+        if text is None and payload.doc_id:
+            text = chunking_service.load_text_from_doc_id(payload.doc_id, payload.collection)
+        if text is None:
+            raise HTTPException(status_code=400, detail="Text is required")
+        return chunking_service.detect(text, payload.doc_id, payload.chunk_kind)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/chunking/finalize", response_model=ChunkingFinalizeResponse)
+def chunking_finalize(payload: ChunkingFinalizeRequest):
+    if not payload.collection:
+        raise HTTPException(status_code=400, detail="collection is required")
+    if not (payload.text or payload.doc_id):
+        raise HTTPException(status_code=400, detail="Provide text or doc_id")
+    text = payload.text
+    if text is None and payload.doc_id:
+        try:
+            text = chunking_service.load_text_from_doc_id(payload.doc_id, payload.collection)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+    if text is None:
+        raise HTTPException(status_code=400, detail="Text is required")
+
+    return chunking_service.finalize(
+        collection=payload.collection,
+        text=text,
+        chunks=payload.chunks,
+        embed=payload.embed,
+        default_kind=payload.default_chunk_kind,
+        doc_id=payload.doc_id,
+    )
 
 
 # -----------------------------------------------------------------------------

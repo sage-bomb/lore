@@ -320,6 +320,78 @@ div.pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
   font-size: 0.9rem;
 }
 
+.chunker {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(10, 14, 22, 0.75);
+  height: 520px;
+  overflow: auto;
+}
+
+.chunk-lines {
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  padding: 10px;
+  counter-reset: line;
+}
+
+.chunk-line {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+
+.chunk-line:nth-child(odd) { background: rgba(255, 255, 255, 0.02); }
+.chunk-line:nth-child(even) { background: rgba(122, 165, 255, 0.04); }
+
+.chunk-line .line-no {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: right;
+  padding-right: 8px;
+}
+
+.chunk-line .line-text { white-space: pre-wrap; word-break: break-word; }
+
+.chunk-line.chunk-start { border: 1px solid var(--accent); box-shadow: 0 0 0 1px rgba(124, 231, 201, 0.15); }
+.chunk-line.chunk-active { background: rgba(124, 231, 201, 0.12); }
+.chunk-line.chunk-end { border: 1px solid var(--accent-blue); box-shadow: 0 0 0 1px rgba(122, 165, 255, 0.2); }
+
+.chunk-handle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-left: 6px;
+  border-radius: 8px;
+  background: rgba(124, 231, 201, 0.1);
+  border: 1px solid rgba(124, 231, 201, 0.3);
+  color: var(--accent);
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.chunk-handle.end { border-color: rgba(122, 165, 255, 0.4); color: var(--accent-blue); background: rgba(122, 165, 255, 0.08); }
+
+.chunk-handle:hover { border-color: var(--accent-strong); }
+
+.chunk-line .markers { display: flex; gap: 6px; }
+
+.chunk-line .chunk-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 0.78rem;
+}
+
 @media (max-width: 640px) {
   .kv { grid-template-columns: 1fr; }
   .card-header { flex-direction: column; align-items: flex-start; }
