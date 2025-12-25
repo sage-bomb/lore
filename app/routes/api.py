@@ -29,6 +29,7 @@ from app.schemas import (
 from app.ingest import ingest_text
 from app.services.openai_ingest import ingest_lore_from_text
 from app.services import chunking as chunking_service
+from app.upload_store import describe_upload, extract_text_from_bytes, save_upload
 
 router = APIRouter(prefix="/api", tags=["api"])
 
