@@ -128,3 +128,38 @@ class OpenAIIngestResponse(BaseModel):
     chunks: List[JsonDict] = Field(default_factory=list)
     things: List[JsonDict] = Field(default_factory=list)
     connections: List[JsonDict] = Field(default_factory=list)
+
+
+# =============================================================================
+# Chunk detection / persistence
+# =============================================================================
+
+class ChunkDetectionRequest(BaseModel):
+    doc_id: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+    min_chars: int = Field(default=400, ge=1)
+    target_chars: int = Field(default=800, ge=1)
+    max_chars: int = Field(default=1200, ge=1)
+    overlap: int = Field(default=0, ge=0, description="Optional overlap in characters")
+
+
+class ChunkMetadata(BaseModel):
+    doc_id: str
+    chunk_id: str
+    text: str
+    start_char: int
+    end_char: int
+    start_line: int
+    end_line: int
+    length_chars: int
+    length_lines: int
+    boundary_reasons: List[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    overlap: int = Field(default=0, ge=0)
+    version: int = Field(default=1, ge=1)
+    finalized: bool = Field(default=False)
+
+
+class ChunkFinalizeRequest(BaseModel):
+    doc_id: str = Field(min_length=1)
+    chunks: List[ChunkMetadata]
