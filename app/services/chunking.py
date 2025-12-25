@@ -1,6 +1,6 @@
 import re
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from app.chroma_store import get_collection
 from app.schemas import (
@@ -172,4 +172,3 @@ def finalize(
         chunk_ids=chunk_ids,
         draft_key=draft_key,
     )
-
