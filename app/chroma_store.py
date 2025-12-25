@@ -1,5 +1,8 @@
+import json
 import os
 import re
+from typing import Any, Dict, List
+
 import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 
@@ -9,6 +12,7 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "all-MiniLM-L6-v2")
 _client = chromadb.PersistentClient(path=CHROMA_PATH)
 _embed_fn = SentenceTransformerEmbeddingFunction(model_name=EMBED_MODEL)
 _NAME_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]{1,510}[A-Za-z0-9])?$")
+_ALLOWED_META_TYPES = (str, int, float, bool, bytes, bytearray, type(None))
 
 def client() -> chromadb.ClientAPI:
     return _client
@@ -37,3 +41,31 @@ def list_collection_names() -> list[str]:
     cols = _client.list_collections()
     # different chroma versions return objects with .name
     return sorted([c.name for c in cols])
+
+
+def sanitize_metadata(meta: Dict[str, Any]) -> Dict[str, Any]:
+    """Coerce metadata values to Chroma-safe primitives."""
+    if not meta:
+        return {}
+
+    sanitized: Dict[str, Any] = {}
+    for key, raw_val in meta.items():
+        if key is None:
+            continue
+        key_str = str(key)
+        val = raw_val
+        if isinstance(raw_val, _ALLOWED_META_TYPES):
+            sanitized[key_str] = raw_val
+            continue
+        if isinstance(raw_val, (list, tuple, set)):
+            val = ", ".join(str(x) for x in raw_val)
+        elif isinstance(raw_val, dict):
+            val = json.dumps(raw_val, ensure_ascii=False)
+        else:
+            val = str(raw_val)
+        sanitized[key_str] = val
+    return sanitized
+
+
+def sanitize_metadatas(metas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return [sanitize_metadata(m) for m in metas]

@@ -20,12 +20,15 @@ class CollectionInfo(BaseModel):
 # Library models (world entities + relationships)
 # =============================================================================
 
-ThingType = Literal[
+KNOWN_THING_TYPES: tuple[str, ...] = (
     "character", "place", "faction", "culture", "race", "deity",
     "artifact", "creature", "magic_concept", "ritual", "currency",
     "term", "event", "chapter", "scene", "lore_entry",
-    "style_rule", "other"
-]
+    "style_rule", "other",
+)
+
+# Hint only; free-form types are allowed so ingestion can introduce new categories.
+ThingType = str
 
 class Thing(BaseModel):
     thing_id: str = Field(min_length=1, description="Stable ID, e.g. character.sahla")

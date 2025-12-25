@@ -1,5 +1,5 @@
 import {
-  qs, val, splitCsv, parseOptionalInt, parseJsonObject, toList, escapeHtml
+  qs, val, splitCsv, parseOptionalInt, parseJsonObject, safeJsonParse, toList, escapeHtml
 } from "./helpers.js";
 import { cardTemplate } from "./cards.js";
 
@@ -235,16 +235,17 @@ async function loadConnections() {
 
   list.innerHTML = data.map(edge => {
     const tags = toList(edge.tags).map(t => `<span class="chip">${escapeHtml(t)}</span>`).join(" ");
+    const edgePayload = encodeURIComponent(JSON.stringify(edge));
     return `
-      <div class="card">
+      <div class="card" data-edge="${edgePayload}">
         <div class="card-header">
           <div>
             <div class="small-label">Edge</div>
             <div style="font-weight:700;">${escapeHtml(edge.edge_id)}</div>
           </div>
           <div class="card-actions">
-            <button class="ghost" onclick="fillEdgeForm(${JSON.stringify(edge.edge_id)}, ${JSON.stringify(edge.src_id)}, ${JSON.stringify(edge.dst_id)}, ${JSON.stringify(edge.rel_type)}, ${JSON.stringify(edge.tags || [])}, ${JSON.stringify(edge.note || "")})">Edit</button>
-            <button class="danger" onclick="deleteConnectionById(${JSON.stringify(edge.edge_id)})">Delete</button>
+            <button class="ghost js-edit-connection" data-edge="${edgePayload}">Edit</button>
+            <button class="danger js-delete-connection" data-edge-id="${encodeURIComponent(edge.edge_id)}">Delete</button>
           </div>
         </div>
         <div class="kv">
@@ -280,7 +281,8 @@ function fillEdgeForm(edge_id, src_id, dst_id, rel_type, tags, note) {
 
 function fillFormFromCard(chunkId, text, metadataJson) {
   try {
-    const meta = typeof metadataJson === "string" ? JSON.parse(metadataJson) : metadataJson || {};
+    let meta = typeof metadataJson === "string" ? safeJsonParse(metadataJson, {}) : (metadataJson || {});
+
     qs("chunkId").value = chunkId || "";
     qs("chunkKind").value = meta.chunk_kind || "thing_summary";
     qs("thingId").value = meta.thing_id || "";
@@ -322,6 +324,7 @@ async function deleteChunk(collection, chunkId) {
 async function analyzeDocument() {
   const status = qs("docStatus");
   const fileInput = qs("docFile");
+  const collection = window.collectionName || "demo_lore";
   const notes = val("docNotes").trim();
   const pasted = val("docText").trim();
   logDoc("Starting document ingest...");
@@ -329,9 +332,10 @@ async function analyzeDocument() {
   if (status) status.textContent = "Reading document...";
 
   let text = pasted;
-  if (fileInput?.files?.[0]) {
+  const files = Array.from(fileInput?.files || []);
+  if (!text && files.length === 1) {
     try {
-      text = await readFileText(fileInput.files[0]);
+      text = await readFileText(files[0]);
     } catch (e) {
       if (status) status.textContent = "Failed to read file.";
       logDoc("Failed to read file. See console for details.");
@@ -340,27 +344,41 @@ async function analyzeDocument() {
     }
   }
 
-  if (!text) {
+  if (!text && !files.length) {
     if (status) status.textContent = "Provide a file or pasted document text.";
     logDoc("No content provided.");
     return;
   }
 
-  if (status) status.textContent = "Sending to OpenAI...";
-  logDoc("Sending request to /api/ingest/openai...");
+  if (files.length) {
+    if (status) status.textContent = `Uploading ${files.length} file(s)...`;
+    logDoc(`Sending ${files.length} file(s) to /api/ingest/upload...`);
+  } else {
+    if (status) status.textContent = "Sending to OpenAI...";
+    logDoc("Sending request to /api/ingest/openai...");
+  }
 
   let data = {};
   try {
-    const res = await fetch("/api/ingest/openai", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        collection: window.collectionName || "demo_lore",
-        text,
-        notes,
-        url: val("docUrl").trim() || null
-      })
-    });
+    let res;
+    if (files.length) {
+      const form = new FormData();
+      form.append("collection", collection);
+      form.append("notes", notes);
+      files.forEach((f) => form.append("files", f));
+      res = await fetch("/api/ingest/upload", { method: "POST", body: form });
+    } else {
+      res = await fetch("/api/ingest/openai", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          collection,
+          text,
+          notes,
+          url: val("docUrl").trim() || null
+        })
+      });
+    }
 
     data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -387,8 +405,25 @@ async function analyzeDocument() {
   })));
 
   renderDocFindings();
-  if (status) status.textContent = `Ingested. Added ${data.counts?.things || 0} things, ${data.counts?.connections || 0} connections, ${data.counts?.chunks || 0} chunks.`;
-  logDoc(`Ingest complete. Things: ${data.counts?.things || 0}, Connections: ${data.counts?.connections || 0}, Chunks: ${data.counts?.chunks || 0}`);
+  if (files.length) {
+    const totals = data.totals || {};
+    if (status) status.textContent = `Uploaded ${files.length} file(s). Added ${totals.things || 0} things, ${totals.connections || 0} connections, ${totals.chunks || 0} chunks.`;
+    logDoc(`Upload ingest complete. Files: ${files.length}, Things: ${totals.things || 0}, Connections: ${totals.connections || 0}, Chunks: ${totals.chunks || 0}`);
+    (data.files || []).forEach((f) => {
+      if (f.error) {
+        logDoc(`- ${f.file?.filename || "file"}: ERROR ${f.error}`);
+      } else {
+        logDoc(`- ${f.file?.filename || "file"} stored at ${f.file?.url || "n/a"} (chunks ${f.counts?.chunks || 0})`);
+      }
+    });
+  } else {
+    if (status) status.textContent = `Ingested. Added ${data.counts?.things || 0} things, ${data.counts?.connections || 0} connections, ${data.counts?.chunks || 0} chunks.`;
+    logDoc(`Ingest complete. Things: ${data.counts?.things || 0}, Connections: ${data.counts?.connections || 0}, Chunks: ${data.counts?.chunks || 0}`);
+  }
+  if (collection) {
+    loadChunks(collection).catch(() => {});
+    loadConnections().catch(() => {});
+  }
 }
 
 function readFileText(file) {
@@ -483,6 +518,24 @@ function handleEditClick(event) {
   }
 }
 
+function handleConnectionAction(event) {
+  const deleteBtn = event.target.closest(".js-delete-connection");
+  const editBtn = event.target.closest(".js-edit-connection");
+
+  if (deleteBtn?.dataset?.edgeId) {
+    const edgeId = decodeURIComponent(deleteBtn.dataset.edgeId);
+    deleteConnectionById(edgeId);
+    return;
+  }
+
+  if (editBtn?.dataset?.edge) {
+    const decoded = decodeURIComponent(editBtn.dataset.edge);
+    const edge = safeJsonParse(decoded, {});
+    fillEdgeForm(edge.edge_id || "", edge.src_id || "", edge.dst_id || "", edge.rel_type || "", edge.tags || [], edge.note || "");
+    return;
+  }
+}
+
 // ---------------- Init ----------------
 document.addEventListener("DOMContentLoaded", () => {
   if (qs("connectionsList")) {
@@ -495,6 +548,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadChunks(window.collectionName).catch(() => {});
   }
   document.addEventListener("click", handleEditClick);
+  document.addEventListener("click", handleConnectionAction);
   const analyzeBtn = qs("analyzeDocBtn");
   if (analyzeBtn) {
     analyzeBtn.addEventListener("click", (e) => {
