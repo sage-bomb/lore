@@ -16,6 +16,7 @@ from app.library_store import (
     list_connections, list_things,
     upsert_connection, upsert_thing,
 )
+from app.chunk_store import store_chunks
 from app.schemas import (
     ChunkOut,
     ChunkUpdate,
@@ -23,6 +24,9 @@ from app.schemas import (
     CollectionCreate,
     CollectionInfo,
     Connection,
+    ChunkDetectionRequest,
+    ChunkFinalizeRequest,
+    ChunkMetadata,
     OpenAIIngestRequest,
     OpenAIIngestResponse,
     QueryHit,
@@ -30,6 +34,7 @@ from app.schemas import (
     Thing,
 )
 from app.ingest import ingest_text
+from app.services.chunking import detect_chunks
 from app.services.openai_ingest import ingest_lore_from_text
 from app.upload_store import describe_upload, extract_text_from_bytes, save_upload
 
@@ -410,6 +415,27 @@ def ingest_api(payload: Dict[str, Any]):
         "things": [t.model_dump(mode="json") for t in stored_things],
         "connections": [c.model_dump(mode="json") for c in stored_connections],
         "chunks": [c.model_dump(mode="json") for c in chunks],
+    }
+
+
+# ---------------- Chunking ----------------
+
+@router.post("/chunking/detect", response_model=List[ChunkMetadata])
+def chunking_detect(payload: ChunkDetectionRequest):
+    return detect_chunks(payload)
+
+
+@router.post("/chunking/finalize")
+def chunking_finalize(payload: ChunkFinalizeRequest):
+    if any(c.doc_id != payload.doc_id for c in payload.chunks):
+        raise HTTPException(status_code=400, detail="All chunks must share the doc_id provided.")
+    version, finalized = store_chunks(payload.doc_id, payload.chunks, finalized=True)
+    return {
+        "ok": True,
+        "doc_id": payload.doc_id,
+        "version": version,
+        "finalized": finalized,
+        "count": len(payload.chunks),
     }
 
 
