@@ -7,6 +7,16 @@ const docFindings = [];
 const docSpinnerId = "docSpinner";
 let docLibrary = [];
 
+function extractDocId(payload) {
+  if (!payload) return null;
+  if (payload.chunk_state?.doc_id) return payload.chunk_state.doc_id;
+  if (Array.isArray(payload.files) && payload.files.length) {
+    const withChunk = payload.files.find((f) => f?.chunk_state?.doc_id);
+    if (withChunk?.chunk_state?.doc_id) return withChunk.chunk_state.doc_id;
+  }
+  return payload.doc_id || null;
+}
+
 function toggleDocSpinner(isLoading, message = "Contacting OpenAI…") {
   const el = qs(docSpinnerId);
   if (!el) return;
@@ -361,6 +371,7 @@ async function analyzeDocument() {
   }
 
   if (files.length) {
+    toggleDocSpinner(true, "Contacting OpenAI…");
     if (status) status.textContent = `Uploading ${files.length} file(s)...`;
     logDoc(`Sending ${files.length} file(s) to /api/ingest/upload...`);
   } else {
@@ -396,7 +407,7 @@ async function analyzeDocument() {
       if (status) status.textContent = data.detail || `Ingestion failed (HTTP ${res.status}).`;
       console.error("Ingestion failed", res.status, data);
       logDoc(`Ingestion failed: ${data.detail || res.status}`);
-      if (!files.length) toggleDocSpinner(false);
+      toggleDocSpinner(false);
       return;
     }
   } catch (e) {
@@ -434,6 +445,18 @@ async function analyzeDocument() {
     logDoc(`Ingest complete. Things: ${data.counts?.things || 0}, Connections: ${data.counts?.connections || 0}, Chunks: ${data.counts?.chunks || 0}`);
   }
   toggleDocSpinner(false);
+
+  const docId = extractDocId(data);
+  if (docId) {
+    const docInput = qs("chunkDocId");
+    if (docInput) docInput.value = docId;
+    if (window.loadDocumentById) {
+      window.loadDocumentById(docId);
+      switchTab("chunking");
+    }
+    if (status) status.textContent = `Processed doc ${docId}. You can adjust chunks below.`;
+  }
+  loadDocLibrary().catch(() => {});
   if (collection) {
     loadChunks(collection).catch(() => {});
     loadConnections().catch(() => {});
