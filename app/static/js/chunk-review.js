@@ -100,6 +100,7 @@ function normalizeChunks(chunks) {
   renderChunkList();
   renderVirtualLines();
   updateStats();
+  renderDocSummary();
 }
 
 function chunkIndexForLine(lineNumber) {
@@ -180,6 +181,10 @@ function summaryLabel(chunk) {
   return `Lines ${chunk.start_line}-${chunk.end_line} · ${chunk.length_chars} chars ${reasonStr ? `· ${reasonStr}` : ""}`;
 }
 
+function metaChunk() {
+  return chunkState.chunks.find((c) => c.is_meta_chunk || c.chunk_kind === "document_meta");
+}
+
 function renderChunkList() {
   const container = qs("chunkList");
   if (!container) return;
@@ -188,17 +193,23 @@ function renderChunkList() {
     return;
   }
 
-  container.innerHTML = chunkState.chunks
+  const visibleChunks = chunkState.chunks.filter((c) => !(c.is_meta_chunk || c.chunk_kind === "document_meta"));
+
+  container.innerHTML = visibleChunks
     .map((chunk, idx) => {
       const isSelected = chunk.chunk_id === chunkState.selectedChunkId;
       const reasons = (chunk.boundary_reasons || []).map((r) => `<span class="chip">${escapeHtml(r)}</span>`).join(" ");
+      const tags = (chunk.tags || []).map((t) => `<span class="chip">${escapeHtml(t)}</span>`).join(" ");
+      const title = chunk.summary_title || `Chunk ${idx + 1}`;
       return `
         <div class="chunk-item ${isSelected ? "is-selected" : ""}" data-chunk-id="${escapeHtml(chunk.chunk_id)}">
           <div class="row space">
             <div>
-              <div class="small-label">Chunk ${idx + 1}</div>
-              <div class="chunk-title">${escapeHtml(chunk.chunk_id)}</div>
+              <div class="small-label">${escapeHtml(chunk.chunk_kind || "chunk")}</div>
+              <div class="chunk-title">${escapeHtml(title)}</div>
+              <div class="mini-text">ID: ${escapeHtml(chunk.chunk_id)}</div>
               <div class="mini-text">${summaryLabel(chunk)}</div>
+              ${tags ? `<div class="pill-row" style="margin-top:6px;">${tags}</div>` : ""}
             </div>
             <div class="chunk-actions">
               <button class="ghost" data-action="select" data-chunk-id="${escapeHtml(chunk.chunk_id)}">Focus</button>
@@ -232,6 +243,28 @@ function renderChunkList() {
       `;
     })
     .join("");
+}
+
+function renderDocSummary() {
+  const panel = qs("docSummary");
+  if (!panel) return;
+  const meta = metaChunk();
+  if (!meta) {
+    panel.innerHTML = "";
+    panel.style.display = "none";
+    return;
+  }
+  const tags = (meta.tags || []).map((t) => `<span class="chip">${escapeHtml(t)}</span>`).join(" ");
+  panel.innerHTML = `
+    <div class="doc-summary">
+      <div class="row space" style="align-items: baseline;">
+        <h3>${escapeHtml(meta.summary_title || "Document summary")}</h3>
+        ${tags ? `<div class="tags">${tags}</div>` : ""}
+      </div>
+      <p>${escapeHtml(meta.text || "")}</p>
+    </div>
+  `;
+  panel.style.display = "block";
 }
 
 function nudgeBoundary(chunkId, edge, delta) {

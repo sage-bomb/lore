@@ -221,8 +221,8 @@
         <div id="chunkStatus" class="muted">Paste text or load by document ID to begin.</div>
       </div>
 
-      <div class="grid two-col" style="margin-top:12px;">
-        <div class="stack">
+      <div class="chunk-layout" style="margin-top:12px;">
+        <div class="stack chunk-main">
           <label>Document with chunk overlays</label>
           <div class="chunk-viewport" id="chunkViewport" aria-label="Chunk review viewport"></div>
           <div class="row" style="margin-top:6px; justify-content:space-between;">
@@ -233,7 +233,8 @@
             </div>
           </div>
         </div>
-        <div class="stack">
+        <div class="stack chunk-sidebar">
+          <div id="docSummary"></div>
           <label>Chunk list &amp; handles</label>
           <div id="chunkList" class="chunk-list"></div>
         </div>
