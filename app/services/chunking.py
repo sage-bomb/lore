@@ -103,7 +103,10 @@ def parse_blocks(text: str) -> List[ParsedBlock]:
 
 
 def _cosine_similarity(vec_a: Sequence[float], vec_b: Sequence[float]) -> float:
-    if not vec_a or not vec_b:
+    if vec_a is None or vec_b is None:
+        return 0.0
+
+    if len(vec_a) == 0 or len(vec_b) == 0:
         return 0.0
     dot = sum(a * b for a, b in zip(vec_a, vec_b))
     norm_a = math.sqrt(sum(a * a for a in vec_a))
