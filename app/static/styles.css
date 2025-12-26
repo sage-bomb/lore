@@ -1,22 +1,22 @@
 :root {
-  /* Core theme inspired by amber/orange/navy palette */
-  --bg: #0b0f17;
-  --panel: #151b26;
-  --panel-strong: #1b2331;
-  --panel-soft: #111722;
-  --border: #243044;
-  --border-strong: #2f3d55;
-  --text: #e9ecf2;
-  --muted: #a5adbd;
-  --accent: #dda14a; /* gold-300 */
-  --accent-strong: #dd9739; /* gold-400 */
-  --accent-blue: #728491; /* teal-300 as a cool accent */
-  --berry-500: #845356;
-  --berry-700: #5e373a;
-  --navy-800: #2d4155;
+  /* Warm sunset / cocoa dark mode */
+  --bg: #0f0b10;
+  --panel: #181018;
+  --panel-strong: #1f1720;
+  --panel-soft: #140e16;
+  --border: #2c1f2a;
+  --border-strong: #3a2b38;
+  --text: #efe9e4;
+  --muted: #b6a8a2;
+  --accent: #f2a65a;
+  --accent-strong: #e27a3f;
+  --accent-blue: #c67a3d; /* warm edge highlight */
+  --berry-500: #9c5a63;
+  --berry-700: #6d3a42;
+  --navy-800: #2e2531;
   --danger: #ff7b72;
   --warning: #f0c66a;
-  --shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+  --shadow: 0 18px 52px rgba(0, 0, 0, 0.55);
 }
 
 * { box-sizing: border-box; }
@@ -24,25 +24,26 @@
 body {
   font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   margin: 0;
-  background: radial-gradient(circle at 20% 12%, rgba(221, 151, 57, 0.08), transparent 22%),
-    radial-gradient(circle at 82% 6%, rgba(114, 132, 145, 0.08), transparent 24%),
-    linear-gradient(180deg, #0b0f17 0%, #0e131d 50%, #0a0e16 100%);
+  background: radial-gradient(circle at 22% 10%, rgba(242, 166, 90, 0.08), transparent 22%),
+    radial-gradient(circle at 78% 6%, rgba(156, 90, 99, 0.08), transparent 26%),
+    linear-gradient(180deg, #0f0b10 0%, #120d14 52%, #0e0a10 100%);
   color: var(--text);
   min-height: 100vh;
+  font-size: 0.97rem;
 }
 
 .header {
-  padding: 16px 22px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--border);
-  background: rgba(10, 15, 23, 0.88);
+  background: rgba(18, 13, 20, 0.9);
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: sticky;
   top: 0;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(8px);
   z-index: 5;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.44);
 }
 
 .brand {
@@ -62,25 +63,25 @@ body {
 
 .tagline { color: var(--muted); font-size: 0.98rem; }
 
-.container { max-width: 1280px; margin: 0 auto; padding: 26px 18px 42px; }
+.container { max-width: 1280px; margin: 0 auto; padding: 22px 16px 40px; }
 
-h1, h2, h3 { margin: 0 0 12px; }
-h1 { font-size: 2rem; letter-spacing: -0.4px; }
-h2 { font-size: 1.32rem; letter-spacing: -0.2px; }
+h1, h2, h3 { margin: 0 0 10px; }
+h1 { font-size: 1.9rem; letter-spacing: -0.3px; }
+h2 { font-size: 1.25rem; letter-spacing: -0.15px; }
 
 .card {
   background: linear-gradient(145deg, var(--panel), var(--panel-strong));
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px;
-  margin: 14px 0;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.38);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+  box-shadow: 0 9px 22px rgba(0, 0, 0, 0.35);
   position: relative;
 }
 
 .card.highlight {
-  border-color: rgba(221, 151, 57, 0.5);
-  box-shadow: 0 14px 46px rgba(221, 151, 57, 0.18);
+  border-color: rgba(242, 166, 90, 0.45);
+  box-shadow: 0 12px 40px rgba(226, 122, 63, 0.2);
 }
 
 .card-header {
@@ -105,10 +106,10 @@ label { color: var(--muted); font-size: 0.94rem; }
 
 input, textarea, select {
   width: 100%;
-  padding: 11px;
+  padding: 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(21, 27, 38, 0.9);
+  border-radius: 6px;
+  background: rgba(26, 18, 26, 0.9);
   color: var(--text);
   transition: border 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
   font-size: 0.98rem;
@@ -117,15 +118,15 @@ input, textarea, select {
 input:focus, textarea:focus, select:focus {
   border-color: var(--accent);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(124, 231, 201, 0.25);
+  box-shadow: 0 0 0 2px rgba(242, 166, 90, 0.25);
 }
 
 textarea { resize: vertical; min-height: 96px; }
 
 button {
-  padding: 10px 14px;
+  padding: 9px 12px;
   border: 1px solid var(--accent-strong);
-  border-radius: 8px;
+  border-radius: 6px;
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: #0b0a08;
   cursor: pointer;
@@ -161,10 +162,10 @@ button.danger {
 
 .muted { color: var(--muted); font-size: 0.96em; margin-top: 6px; }
 
-.item { border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-top: 10px; background: var(--panel); }
+.item { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-top: 10px; background: var(--panel); }
 
-pre { white-space: pre-wrap; margin: 10px 0 0; background: #0f1420; padding: 12px; border-radius: 12px; border: 1px solid var(--border); color: #dbe4ff; }
-code { background: #0f1420; padding: 2px 6px; border-radius: 8px; border: 1px solid var(--border); color: var(--accent); }
+pre { white-space: pre-wrap; margin: 10px 0 0; background: #120d14; padding: 12px; border-radius: 8px; border: 1px solid var(--border); color: #f3e9df; }
+code { background: #120d14; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border); color: var(--accent); }
 
 ul { margin: 8px 0 0; padding-left: 18px; color: var(--text); }
 li + li { margin-top: 4px; }
@@ -173,13 +174,13 @@ li + li { margin-top: 4px; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(114, 132, 145, 0.12);
+  background: rgba(242, 166, 90, 0.12);
   border: 1px solid var(--border);
   color: var(--accent);
-  padding: 6px 10px;
-  border-radius: 16px;
+  padding: 5px 9px;
+  border-radius: 12px;
   font-weight: 600;
-  letter-spacing: 0.1px;
+  letter-spacing: 0.05px;
 }
 
 .hero {
@@ -239,12 +240,12 @@ div.pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 9px;
-  background: rgba(114, 132, 145, 0.12);
+  padding: 3px 8px;
+  background: rgba(242, 166, 90, 0.14);
   color: var(--text);
-  border-radius: 8px;
-  border: 1px solid rgba(114, 132, 145, 0.35);
-  font-size: 0.92rem;
+  border-radius: 6px;
+  border: 1px solid rgba(242, 166, 90, 0.35);
+  font-size: 0.9rem;
 }
 
 .status-dot {
@@ -264,8 +265,8 @@ div.pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 10px; font-size: 0.95rem; }
 .kv .label { color: var(--muted); text-transform: uppercase; font-size: 0.82rem; letter-spacing: 0.5px; }
 
-.badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 8px; background: rgba(114, 132, 145, 0.14); color: var(--text); border: 1px solid rgba(114, 132, 145, 0.42); font-size: 0.9rem; }
-.badge.success { background: rgba(221, 151, 57, 0.18); border-color: rgba(221, 151, 57, 0.5); color: var(--text); }
+.badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 6px; background: rgba(242, 166, 90, 0.14); color: var(--text); border: 1px solid rgba(242, 166, 90, 0.42); font-size: 0.88rem; }
+.badge.success { background: rgba(242, 166, 90, 0.2); border-color: rgba(242, 166, 90, 0.55); color: var(--text); }
 .badge.danger { background: rgba(255, 123, 114, 0.15); border-color: rgba(255, 123, 114, 0.5); color: var(--text); }
 
 .card + .card { margin-top: 16px; }
@@ -296,7 +297,7 @@ div.pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .chunk-viewport {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--panel-soft);
   max-height: 700px;
   min-height: 420px;
@@ -328,7 +329,7 @@ div.pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .chunk-list { display: flex; flex-direction: column; gap: 10px; }
 .chunk-item {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 10px;
   background: rgba(24, 32, 45, 0.7);
 }
@@ -337,7 +338,7 @@ div.pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .chunk-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .chunk-handles { display: grid; gap: 10px; margin-top: 8px; }
 .chunk-handles .row button { padding: 8px 10px; }
-.handle-group { background: rgba(17, 24, 37, 0.6); border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+.handle-group { background: rgba(17, 24, 37, 0.6); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
 
 .modal {
   position: fixed;
@@ -353,7 +354,7 @@ div.pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .modal-content {
   background: linear-gradient(145deg, var(--panel), var(--panel-strong));
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 16px;
   width: min(900px, 100%);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);

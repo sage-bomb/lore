@@ -1,10 +1,10 @@
 import { qs, val, escapeHtml, splitCsv } from "./helpers.js";
 
 const palette = [
-  "linear-gradient(90deg, rgba(124, 231, 201, 0.18), rgba(124, 231, 201, 0.03))",
-  "linear-gradient(90deg, rgba(122, 165, 255, 0.18), rgba(122, 165, 255, 0.03))",
-  "linear-gradient(90deg, rgba(255, 123, 114, 0.16), rgba(255, 123, 114, 0.02))",
-  "linear-gradient(90deg, rgba(248, 212, 119, 0.18), rgba(248, 212, 119, 0.03))",
+  "linear-gradient(90deg, rgba(242, 166, 90, 0.16), rgba(242, 166, 90, 0.04))",
+  "linear-gradient(90deg, rgba(226, 122, 63, 0.16), rgba(226, 122, 63, 0.04))",
+  "linear-gradient(90deg, rgba(156, 90, 99, 0.18), rgba(156, 90, 99, 0.04))",
+  "linear-gradient(90deg, rgba(108, 82, 94, 0.16), rgba(108, 82, 94, 0.04))",
 ];
 
 const chunkState = {
@@ -207,7 +207,6 @@ function renderChunkList() {
             <div>
               <div class="small-label">${escapeHtml(chunk.chunk_kind || "chunk")}</div>
               <div class="chunk-title">${escapeHtml(title)}</div>
-              <div class="mini-text">ID: ${escapeHtml(chunk.chunk_id)}</div>
               <div class="mini-text">${summaryLabel(chunk)}</div>
               ${tags ? `<div class="pill-row" style="margin-top:6px;">${tags}</div>` : ""}
             </div>
