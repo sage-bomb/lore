@@ -16,7 +16,7 @@ from app.library_store import (
     list_connections, list_things,
     upsert_connection, upsert_thing,
 )
-from app.chunk_store import get_chunks, store_chunks
+from app.chunk_store import get_chunks, list_docs, store_chunks
 from app.schemas import (
     ChunkOut,
     ChunkUpdate,
@@ -445,6 +445,11 @@ def chunking_document(doc_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     return doc
+
+
+@router.get("/chunking/documents")
+def chunking_document_list(limit: int = 100):
+    return list_docs(limit=limit)
 
 
 # -----------------------------------------------------------------------------

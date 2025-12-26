@@ -4,6 +4,26 @@ import {
 import { cardTemplate } from "./cards.js";
 
 const docFindings = [];
+const docSpinnerId = "docSpinner";
+let docLibrary = [];
+
+function extractDocId(payload) {
+  if (!payload) return null;
+  if (payload.chunk_state?.doc_id) return payload.chunk_state.doc_id;
+  if (Array.isArray(payload.files) && payload.files.length) {
+    const withChunk = payload.files.find((f) => f?.chunk_state?.doc_id);
+    if (withChunk?.chunk_state?.doc_id) return withChunk.chunk_state.doc_id;
+  }
+  return payload.doc_id || null;
+}
+
+function toggleDocSpinner(isLoading, message = "Contacting OpenAI…") {
+  const el = qs(docSpinnerId);
+  if (!el) return;
+  const text = el.querySelector(".spinner-text");
+  if (text) text.textContent = message;
+  el.style.display = isLoading ? "inline-flex" : "none";
+}
 
 // ---------------- Collections ----------------
 
@@ -351,10 +371,12 @@ async function analyzeDocument() {
   }
 
   if (files.length) {
+    toggleDocSpinner(true, "Contacting OpenAI…");
     if (status) status.textContent = `Uploading ${files.length} file(s)...`;
     logDoc(`Sending ${files.length} file(s) to /api/ingest/upload...`);
   } else {
     if (status) status.textContent = "Sending to OpenAI...";
+    toggleDocSpinner(true);
     logDoc("Sending request to /api/ingest/openai...");
   }
 
@@ -385,10 +407,12 @@ async function analyzeDocument() {
       if (status) status.textContent = data.detail || `Ingestion failed (HTTP ${res.status}).`;
       console.error("Ingestion failed", res.status, data);
       logDoc(`Ingestion failed: ${data.detail || res.status}`);
+      toggleDocSpinner(false);
       return;
     }
   } catch (e) {
     if (status) status.textContent = "Network error sending to OpenAI.";
+    toggleDocSpinner(false);
     console.error("Ingestion request error", e);
     logDoc("Network error sending to OpenAI.");
     return;
@@ -420,6 +444,19 @@ async function analyzeDocument() {
     if (status) status.textContent = `Ingested. Added ${data.counts?.things || 0} things, ${data.counts?.connections || 0} connections, ${data.counts?.chunks || 0} chunks.`;
     logDoc(`Ingest complete. Things: ${data.counts?.things || 0}, Connections: ${data.counts?.connections || 0}, Chunks: ${data.counts?.chunks || 0}`);
   }
+  toggleDocSpinner(false);
+
+  const docId = extractDocId(data);
+  if (docId) {
+    const docInput = qs("chunkDocId");
+    if (docInput) docInput.value = docId;
+    if (window.loadDocumentById) {
+      window.loadDocumentById(docId);
+      switchTab("chunking");
+    }
+    if (status) status.textContent = `Processed doc ${docId}. You can adjust chunks below.`;
+  }
+  loadDocLibrary().catch(() => {});
   if (collection) {
     loadChunks(collection).catch(() => {});
     loadConnections().catch(() => {});
@@ -483,6 +520,54 @@ function markFinding(id, status) {
   renderDocFindings();
 }
 
+async function loadDocLibrary() {
+  const limit = Number(val("docLibraryLimit") || "50") || 50;
+  const container = qs("docLibrary");
+  if (container) container.innerHTML = `<div class="muted">Loading documents...</div>`;
+  let res;
+  try {
+    res = await fetch(`/api/chunking/documents?limit=${encodeURIComponent(limit)}`);
+  } catch (e) {
+    if (container) container.innerHTML = `<div class="muted">Network error loading documents.</div>`;
+    return;
+  }
+  const data = await res.json().catch(() => []);
+  if (!res.ok) {
+    if (container) container.innerHTML = `<div class="muted">Failed to load documents.</div>`;
+    return;
+  }
+  docLibrary = Array.isArray(data) ? data : [];
+  renderDocLibrary();
+}
+
+function renderDocLibrary() {
+  const container = qs("docLibrary");
+  if (!container) return;
+  if (!docLibrary.length) {
+    container.innerHTML = `<div class="muted">No stored documents yet. Upload or paste a draft to get started.</div>`;
+    return;
+  }
+  container.innerHTML = docLibrary
+    .map((doc) => {
+      const badge = doc.finalized ? `<span class="badge success">Finalized</span>` : `<span class="badge">Draft</span>`;
+      return `
+        <div class="card">
+          <div class="row space" style="align-items:baseline;">
+            <div>
+              <div class="chunk-title">${escapeHtml(doc.doc_id || "")}</div>
+              <div class="mini-text">v${doc.version || 1} · ${doc.chunk_count || 0} chunk(s) · ${doc.text_length || 0} chars</div>
+            </div>
+            <div class="row" style="gap:8px; align-items:center;">
+              ${badge}
+              <button class="ghost js-doc-load" data-doc-id="${escapeHtml(doc.doc_id || "")}">Load</button>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
 // ---------------- Tabs & Modal ----------------
 function switchTab(name) {
   document.querySelectorAll(".tab").forEach(btn => {
@@ -543,6 +628,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (qs("docResults")) {
     renderDocFindings();
+    loadDocLibrary().catch(() => {});
   }
   if (window.collectionName && qs("cardsList")) {
     loadChunks(window.collectionName).catch(() => {});
@@ -556,6 +642,23 @@ document.addEventListener("DOMContentLoaded", () => {
       analyzeDocument();
     });
   }
+  const docRefresh = qs("docLibraryRefreshBtn");
+  if (docRefresh) {
+    docRefresh.addEventListener("click", (e) => {
+      e.preventDefault();
+      loadDocLibrary();
+    });
+  }
+  document.addEventListener("click", (e) => {
+    const loadBtn = e.target.closest(".js-doc-load");
+    if (loadBtn?.dataset?.docId && window.loadDocumentById) {
+      const docId = loadBtn.dataset.docId;
+      const target = qs("chunkDocId");
+      if (target) target.value = docId;
+      window.loadDocumentById(docId);
+      switchTab("chunking");
+    }
+  });
 });
 
 // ---------------- Back-compat aliases ----------------

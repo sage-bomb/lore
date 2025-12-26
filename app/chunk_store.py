@@ -66,3 +66,21 @@ def get_chunks(doc_id: str) -> Optional[dict]:
         "text": doc.get("text"),
         "chunks": [ChunkMetadata.model_validate(c) for c in doc.get("chunks", [])],
     }
+
+
+def list_docs(limit: int = 100) -> list[dict]:
+    data = load_chunk_store()
+    docs = data.get("docs", {})
+    items: list[dict] = []
+    for doc_id, payload in docs.items():
+        chunks = payload.get("chunks") or []
+        text = payload.get("text") or ""
+        items.append({
+            "doc_id": doc_id,
+            "version": int(payload.get("version", 1)),
+            "finalized": bool(payload.get("finalized", False)),
+            "chunk_count": len(chunks),
+            "text_length": len(text),
+        })
+    items.sort(key=lambda x: x.get("doc_id", ""))
+    return items[:max(1, limit)]

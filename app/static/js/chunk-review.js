@@ -1,10 +1,10 @@
 import { qs, val, escapeHtml, splitCsv } from "./helpers.js";
 
 const palette = [
-  "linear-gradient(90deg, rgba(124, 231, 201, 0.18), rgba(124, 231, 201, 0.03))",
-  "linear-gradient(90deg, rgba(122, 165, 255, 0.18), rgba(122, 165, 255, 0.03))",
-  "linear-gradient(90deg, rgba(255, 123, 114, 0.16), rgba(255, 123, 114, 0.02))",
-  "linear-gradient(90deg, rgba(248, 212, 119, 0.18), rgba(248, 212, 119, 0.03))",
+  "linear-gradient(90deg, rgba(242, 166, 90, 0.16), rgba(242, 166, 90, 0.04))",
+  "linear-gradient(90deg, rgba(226, 122, 63, 0.16), rgba(226, 122, 63, 0.04))",
+  "linear-gradient(90deg, rgba(156, 90, 99, 0.18), rgba(156, 90, 99, 0.04))",
+  "linear-gradient(90deg, rgba(108, 82, 94, 0.16), rgba(108, 82, 94, 0.04))",
 ];
 
 const chunkState = {
@@ -27,6 +27,14 @@ function clampLine(line, total = null) {
 function setStatus(msg) {
   const el = qs("chunkStatus");
   if (el) el.textContent = msg;
+}
+
+function toggleChunkSpinner(isLoading, message = "Contacting OpenAI…") {
+  const el = qs("chunkSpinner");
+  if (!el) return;
+  const text = el.querySelector(".spinner-text");
+  if (text) text.textContent = message;
+  el.style.display = isLoading ? "inline-flex" : "none";
 }
 
 function computeOffsets(text) {
@@ -59,6 +67,21 @@ function lineEndChar(line) {
 }
 
 function recalcChunkBounds(chunk) {
+  if (chunk.is_meta_chunk || chunk.chunk_kind === "document_meta") {
+    const baseLength = chunk.length_chars ?? (chunk.text ? chunk.text.length : 0);
+    const baseLines = chunk.length_lines ?? 0;
+    return {
+      ...chunk,
+      doc_id: chunk.doc_id || chunkState.docId,
+      start_line: chunk.start_line ?? 0,
+      end_line: chunk.end_line ?? 0,
+      start_char: chunk.start_char ?? 0,
+      end_char: chunk.end_char ?? 0,
+      length_lines: baseLines,
+      length_chars: baseLength,
+    };
+  }
+
   const total = Math.max(1, chunkState.lines.length);
   const startLine = clampLine(chunk.start_line || 1, total);
   const endLine = clampLine(chunk.end_line || startLine, total);
@@ -85,6 +108,7 @@ function normalizeChunks(chunks) {
   renderChunkList();
   renderVirtualLines();
   updateStats();
+  renderDocSummary();
 }
 
 function chunkIndexForLine(lineNumber) {
@@ -165,6 +189,10 @@ function summaryLabel(chunk) {
   return `Lines ${chunk.start_line}-${chunk.end_line} · ${chunk.length_chars} chars ${reasonStr ? `· ${reasonStr}` : ""}`;
 }
 
+function metaChunk() {
+  return chunkState.chunks.find((c) => c.is_meta_chunk || c.chunk_kind === "document_meta");
+}
+
 function renderChunkList() {
   const container = qs("chunkList");
   if (!container) return;
@@ -173,17 +201,22 @@ function renderChunkList() {
     return;
   }
 
-  container.innerHTML = chunkState.chunks
+  const visibleChunks = chunkState.chunks.filter((c) => !(c.is_meta_chunk || c.chunk_kind === "document_meta"));
+
+  container.innerHTML = visibleChunks
     .map((chunk, idx) => {
       const isSelected = chunk.chunk_id === chunkState.selectedChunkId;
       const reasons = (chunk.boundary_reasons || []).map((r) => `<span class="chip">${escapeHtml(r)}</span>`).join(" ");
+      const tags = (chunk.tags || []).map((t) => `<span class="chip">${escapeHtml(t)}</span>`).join(" ");
+      const title = chunk.summary_title || `Chunk ${idx + 1}`;
       return `
         <div class="chunk-item ${isSelected ? "is-selected" : ""}" data-chunk-id="${escapeHtml(chunk.chunk_id)}">
           <div class="row space">
             <div>
-              <div class="small-label">Chunk ${idx + 1}</div>
-              <div class="chunk-title">${escapeHtml(chunk.chunk_id)}</div>
+              <div class="small-label">${escapeHtml(chunk.chunk_kind || "chunk")}</div>
+              <div class="chunk-title">${escapeHtml(title)}</div>
               <div class="mini-text">${summaryLabel(chunk)}</div>
+              ${tags ? `<div class="pill-row" style="margin-top:6px;">${tags}</div>` : ""}
             </div>
             <div class="chunk-actions">
               <button class="ghost" data-action="select" data-chunk-id="${escapeHtml(chunk.chunk_id)}">Focus</button>
@@ -217,6 +250,28 @@ function renderChunkList() {
       `;
     })
     .join("");
+}
+
+function renderDocSummary() {
+  const panel = qs("docSummary");
+  if (!panel) return;
+  const meta = metaChunk();
+  if (!meta) {
+    panel.innerHTML = "";
+    panel.style.display = "none";
+    return;
+  }
+  const tags = (meta.tags || []).map((t) => `<span class="chip">${escapeHtml(t)}</span>`).join(" ");
+  panel.innerHTML = `
+    <div class="doc-summary">
+      <div class="row space" style="align-items: baseline;">
+        <h3>${escapeHtml(meta.summary_title || "Document summary")}</h3>
+        ${tags ? `<div class="tags">${tags}</div>` : ""}
+      </div>
+      <p>${escapeHtml(meta.text || "")}</p>
+    </div>
+  `;
+  panel.style.display = "block";
 }
 
 function nudgeBoundary(chunkId, edge, delta) {
@@ -443,6 +498,7 @@ async function detectChunks() {
   qs("chunkDocId").value = docId;
   setDocumentText(text);
   setStatus("Detecting chunks...");
+  toggleChunkSpinner(true);
 
   const payload = { doc_id: docId, text, min_chars, target_chars, max_chars, overlap };
   let res;
@@ -455,21 +511,24 @@ async function detectChunks() {
   } catch (e) {
     console.error("Chunk detect failed", e);
     setStatus("Network error calling /api/chunking/detect.");
+    toggleChunkSpinner(false);
     return;
   }
 
   const data = await res.json().catch(() => []);
   if (!res.ok) {
     setStatus(data?.detail || "Chunk detection failed.");
+    toggleChunkSpinner(false);
     return;
   }
 
   normalizeChunks(data || []);
   setStatus(`Detected ${Array.isArray(data) ? data.length : 0} chunk(s).`);
+  toggleChunkSpinner(false);
 }
 
-async function loadDocumentById() {
-  const docId = val("chunkDocId").trim();
+async function loadDocumentById(docIdOverride = null) {
+  const docId = docIdOverride || val("chunkDocId").trim();
   if (!docId) {
     setStatus("Enter a document ID to load.");
     return;
@@ -625,3 +684,6 @@ function initChunkReview() {
 }
 
 document.addEventListener("DOMContentLoaded", initChunkReview);
+
+// Expose loader for other modules
+window.loadDocumentById = loadDocumentById;
