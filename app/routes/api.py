@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
@@ -34,6 +35,7 @@ from app.schemas import (
     Thing,
 )
 from app.ingest import ingest_text
+from app.services.chunk_orchestrator import detect_or_reuse_chunks, derive_doc_id, slugify
 from app.services.chunking import detect_chunks
 from app.services.openai_ingest import ingest_lore_from_text
 from app.upload_store import describe_upload, extract_text_from_bytes, save_upload
@@ -58,6 +60,13 @@ def _apply_in_filter(where: Optional[Dict[str, Any]], field: str, values: Option
     else:
         clause = {field: {"$in": values}}
     return _merge_where(where, clause)
+
+
+def _coerce_int(value: Optional[str]) -> Optional[int]:
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 # ---------------- Collections CRUD ----------------
@@ -169,6 +178,8 @@ async def ingest_upload(
         file_results.append({
             "file": describe_upload(upload_meta, size_bytes),
             "counts": result["counts"],
+            "doc_id": result.get("chunk_state", {}).get("doc_id"),
+            "chunk_state": result.get("chunk_state"),
             "things": result.get("things") or [],
             "connections": result.get("connections") or [],
             "chunks": result.get("chunks") or [],
@@ -420,9 +431,127 @@ def ingest_api(payload: Dict[str, Any]):
 
 # ---------------- Chunking ----------------
 
-@router.post("/chunking/detect", response_model=List[ChunkMetadata])
-def chunking_detect(payload: ChunkDetectionRequest):
-    return detect_chunks(payload)
+@router.post("/chunking/upload")
+async def chunking_upload(
+    files: List[UploadFile] = File(...),
+    doc_id_prefix: Optional[str] = Form(default=None),
+    collection: Optional[str] = Form(default=None),
+    min_chars: Optional[str] = Form(default=None),
+    target_chars: Optional[str] = Form(default=None),
+    max_chars: Optional[str] = Form(default=None),
+    overlap: Optional[str] = Form(default=None),
+):
+    if not files:
+        raise HTTPException(status_code=400, detail="At least one file is required.")
+
+    overrides: Dict[str, int] = {}
+    for key, value in {
+        "min_chars": _coerce_int(min_chars),
+        "target_chars": _coerce_int(target_chars),
+        "max_chars": _coerce_int(max_chars),
+        "overlap": _coerce_int(overlap),
+    }.items():
+        if value is not None:
+            overrides[key] = value
+
+    existing_ids = {doc.get("doc_id") for doc in list_docs(limit=10000) if doc.get("doc_id")}
+    results: List[Dict[str, Any]] = []
+    primary_doc_id: Optional[str] = None
+
+    for f in files:
+        data = await f.read()
+        upload_meta = save_upload(f, data)
+        size_bytes = len(data) if data is not None else None
+        text = extract_text_from_bytes(data)
+
+        if not text.strip():
+            results.append({
+                "file": describe_upload(upload_meta, size_bytes),
+                "error": "File is empty or unreadable",
+            })
+            continue
+
+        filename_slug = slugify(os.path.splitext(upload_meta.get("filename") or "doc")[0])
+        preferred_id = "-".join(filter(None, [doc_id_prefix, filename_slug])) if doc_id_prefix else filename_slug
+        source_hint = {
+            "filename": upload_meta.get("filename"),
+            "file_id": upload_meta.get("file_id"),
+            "url": upload_meta.get("url"),
+        }
+        doc_id = derive_doc_id(
+            explicit_doc_id=preferred_id,
+            source=source_hint,
+            text=text,
+            collection=collection or "chunking",
+        )
+        if doc_id in existing_ids:
+            doc_id = f"{doc_id}-{upload_meta.get('file_id', '')[:8]}"
+        existing_ids.add(doc_id)
+
+        try:
+            detection = detect_or_reuse_chunks(
+                doc_id=doc_id,
+                text=text,
+                detection_overrides=overrides or None,
+                filename=upload_meta.get("filename"),
+                url=upload_meta.get("url"),
+            )
+        except Exception as exc:
+            results.append({
+                "file": describe_upload(upload_meta, size_bytes),
+                "error": str(exc),
+            })
+            continue
+
+        chunk_count = len(detection.get("chunks") or [])
+        entry = {
+            "file": describe_upload(upload_meta, size_bytes),
+            "doc_id": detection.get("doc_id"),
+            "chunk_state": {
+                "doc_id": detection.get("doc_id"),
+                "version": detection.get("version"),
+                "finalized": detection.get("finalized"),
+                "reused": detection.get("reused"),
+            },
+            "version": detection.get("version"),
+            "finalized": detection.get("finalized"),
+            "chunk_count": chunk_count,
+            "text_length": len(text),
+            "filename": upload_meta.get("filename"),
+            "url": upload_meta.get("url"),
+        }
+        results.append(entry)
+        if not primary_doc_id:
+            primary_doc_id = detection.get("doc_id")
+
+    return {
+        "ok": True,
+        "docs": results,
+        "primary_doc_id": primary_doc_id,
+    }
+
+
+@router.post("/chunking/detect")
+def chunking_detect(payload: ChunkDetectionRequest, persist: bool = Query(default=False, description="Store detected chunks as a draft")):
+    chunks = detect_chunks(payload)
+    if persist:
+        version, finalized = store_chunks(payload.doc_id, chunks, finalized=False, text=payload.text)
+        return {
+            "doc_id": payload.doc_id,
+            "version": version,
+            "finalized": finalized,
+            "chunks": chunks,
+            "persisted": True,
+        }
+
+    version = max((getattr(c, "version", None) or 0) for c in chunks) if chunks else 1
+    return {
+        "doc_id": payload.doc_id,
+        "version": max(1, version),
+        "finalized": False,
+        "chunks": chunks,
+        "persisted": False,
+    }
 
 
 @router.post("/chunking/finalize")

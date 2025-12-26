@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
 
 from app.schemas import ChunkMetadata
@@ -38,6 +39,8 @@ def store_chunks(
     chunks: list[ChunkMetadata],
     finalized: bool = False,
     text: Optional[str] = None,
+    filename: Optional[str] = None,
+    url: Optional[str] = None,
 ) -> Tuple[int, bool]:
     data = load_chunk_store()
     docs = data.setdefault("docs", {})
@@ -49,6 +52,9 @@ def store_chunks(
         "finalized": finalized,
         "text": text if text is not None else existing.get("text"),
         "chunks": [c.model_dump(mode="json") for c in stored_chunks],
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "filename": filename if filename is not None else existing.get("filename"),
+        "url": url if url is not None else existing.get("url"),
     }
     save_chunk_store(data)
     return version, finalized
@@ -64,6 +70,9 @@ def get_chunks(doc_id: str) -> Optional[dict]:
         "version": int(doc.get("version", 1)),
         "finalized": bool(doc.get("finalized", False)),
         "text": doc.get("text"),
+        "updated_at": doc.get("updated_at"),
+        "filename": doc.get("filename"),
+        "url": doc.get("url"),
         "chunks": [ChunkMetadata.model_validate(c) for c in doc.get("chunks", [])],
     }
 
@@ -81,6 +90,9 @@ def list_docs(limit: int = 100) -> list[dict]:
             "finalized": bool(payload.get("finalized", False)),
             "chunk_count": len(chunks),
             "text_length": len(text),
+            "updated_at": payload.get("updated_at"),
+            "filename": payload.get("filename"),
+            "url": payload.get("url"),
         })
-    items.sort(key=lambda x: x.get("doc_id", ""))
+    items.sort(key=lambda x: x.get("updated_at") or "", reverse=True)
     return items[:max(1, limit)]

@@ -130,9 +130,10 @@
         <input id="docUrl" type="text" placeholder="Paste a link to a chapter or doc (UI only)"/>
       </div>
 
-      <div class="row" style="align-items:center; gap:10px; margin-top:8px;">
-        <button class="ghost" id="analyzeDocBtn">Analyze draft</button>
-        <div id="docStatus" class="muted">Press analyze to send this document to OpenAI.</div>
+      <div class="row" style="align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap;">
+        <button class="secondary" id="chunkUploadDetectBtn">Upload + Detect</button>
+        <button class="ghost" id="analyzeDocBtn">Analyze with OpenAI</button>
+        <div id="docStatus" class="muted">Upload files to store drafts and auto-detect chunks. OpenAI analysis is optional.</div>
         <div id="docSpinner" class="spinner" style="display:none;"><span class="spinner-text">Contacting OpenAI…</span></div>
       </div>
       <pre id="docLog" class="log" aria-live="polite"></pre>
@@ -195,7 +196,7 @@
         <div class="row" style="justify-content:space-between;">
           <div class="row">
             <button class="ghost" id="chunkDetectBtn">Detect chunks</button>
-            <div class="pill">Calls /api/chunking/detect</div>
+            <div class="pill">Calls /api/chunking/detect?persist=true</div>
           </div>
           <div class="row">
             <div class="stack mini">

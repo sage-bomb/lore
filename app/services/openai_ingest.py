@@ -131,7 +131,12 @@ def _persist_chunk_draft(
     source: Dict[str, Any] | None,
     collection: str,
 ) -> Dict[str, Any]:
-    detection = detect_or_reuse_chunks(doc_id=doc_id, text=text)
+    detection = detect_or_reuse_chunks(
+        doc_id=doc_id,
+        text=text,
+        filename=(source or {}).get("filename"),
+        url=(source or {}).get("url"),
+    )
 
     base_meta = {
         "source_file": source.get("filename") if source else None,
