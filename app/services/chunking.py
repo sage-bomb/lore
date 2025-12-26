@@ -112,7 +112,7 @@ def _cosine_similarity(vec_a: Sequence[float], vec_b: Sequence[float]) -> float:
     except TypeError:
         return 0.0
 
-    if not seq_a or not seq_b:
+    if len(seq_a) == 0 or len(seq_b) == 0:
         return 0.0
     dot = sum(a * b for a, b in zip(seq_a, seq_b))
     norm_a = math.sqrt(sum(a * a for a in seq_a))
