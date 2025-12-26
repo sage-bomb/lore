@@ -106,11 +106,17 @@ def _cosine_similarity(vec_a: Sequence[float], vec_b: Sequence[float]) -> float:
     if vec_a is None or vec_b is None:
         return 0.0
 
-    if len(vec_a) == 0 or len(vec_b) == 0:
+    try:
+        seq_a = list(vec_a)
+        seq_b = list(vec_b)
+    except TypeError:
         return 0.0
-    dot = sum(a * b for a, b in zip(vec_a, vec_b))
-    norm_a = math.sqrt(sum(a * a for a in vec_a))
-    norm_b = math.sqrt(sum(b * b for b in vec_b))
+
+    if not seq_a or not seq_b:
+        return 0.0
+    dot = sum(a * b for a, b in zip(seq_a, seq_b))
+    norm_a = math.sqrt(sum(a * a for a in seq_a))
+    norm_b = math.sqrt(sum(b * b for b in seq_b))
     denom = norm_a * norm_b
     if denom == 0:
         return 0.0
@@ -121,7 +127,10 @@ def embed_blocks(blocks: Iterable[ParsedBlock]) -> List[List[float]]:
     texts = [b.text for b in blocks]
     if not texts:
         return []
-    return _embed_fn(texts)
+    embeddings = _embed_fn(texts)
+    # The embedding function may return numpy arrays; coerce to plain lists for
+    # predictable truthiness/len behavior downstream.
+    return [list(vec) for vec in embeddings]
 
 
 def _boundary_score(left: ParsedBlock, right: ParsedBlock, similarity: float) -> tuple[float, List[str]]:
@@ -202,8 +211,10 @@ def detect_chunks(payload: ChunkDetectionRequest) -> List[ChunkMetadata]:
     embeddings = embed_blocks(blocks)
     boundary_scores: List[tuple[float, List[str]]] = []
 
+    num_embeddings = len(embeddings)
+
     for i in range(len(blocks) - 1):
-        sim = _cosine_similarity(embeddings[i], embeddings[i + 1]) if embeddings else 0.0
+        sim = _cosine_similarity(embeddings[i], embeddings[i + 1]) if i + 1 < num_embeddings else 0.0
         score, reasons = _boundary_score(blocks[i], blocks[i + 1], sim)
         boundary_scores.append((score, reasons))
 
