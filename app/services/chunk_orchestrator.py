@@ -101,11 +101,12 @@ def annotate_chunks(
     for chunk in chunks:
         ids.append(chunk.chunk_id)
         documents.append(chunk.text)
+        resolved_chunk_kind = chunk.chunk_kind or chunk_kind
         meta = dict(base_metadata)
         meta.update(
             {
                 "doc_id": chunk.doc_id,
-                "chunk_kind": chunk_kind,
+                "chunk_kind": resolved_chunk_kind,
                 "start_line": chunk.start_line,
                 "end_line": chunk.end_line,
                 "start_char": chunk.start_char,
@@ -116,6 +117,12 @@ def annotate_chunks(
                 "length_lines": chunk.length_lines,
                 "boundary_reasons": chunk.boundary_reasons,
                 "overlap": chunk.overlap,
+                "tags": chunk.tags,
+                "thing_type": chunk.thing_type,
+                "summary_title": chunk.summary_title,
+                "parent_chunk_id": chunk.parent_chunk_id,
+                "child_chunk_ids": chunk.child_chunk_ids,
+                "is_meta_chunk": chunk.is_meta_chunk,
             }
         )
         metadatas.append(meta)

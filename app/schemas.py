@@ -161,6 +161,13 @@ class ChunkMetadata(BaseModel):
     overlap: int = Field(default=0, ge=0)
     version: int = Field(default=1, ge=1)
     finalized: bool = Field(default=False)
+    chunk_kind: Optional[str] = Field(default=None, description="Semantic label for the chunk, e.g., chapter_text")
+    summary_title: Optional[str] = Field(default=None, description="Short title summarizing the chunk")
+    tags: List[str] = Field(default_factory=list)
+    thing_type: Optional[str] = Field(default=None, description="Type hint for the main entity discussed in the chunk")
+    parent_chunk_id: Optional[str] = Field(default=None, description="Optional parent/meta chunk ID")
+    child_chunk_ids: List[str] = Field(default_factory=list, description="Optional child chunk references")
+    is_meta_chunk: bool = Field(default=False, description="Marks document-level meta chunks")
 
 
 class ChunkFinalizeRequest(BaseModel):

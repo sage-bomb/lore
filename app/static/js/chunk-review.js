@@ -59,6 +59,21 @@ function lineEndChar(line) {
 }
 
 function recalcChunkBounds(chunk) {
+  if (chunk.is_meta_chunk || chunk.chunk_kind === "document_meta") {
+    const baseLength = chunk.length_chars ?? (chunk.text ? chunk.text.length : 0);
+    const baseLines = chunk.length_lines ?? 0;
+    return {
+      ...chunk,
+      doc_id: chunk.doc_id || chunkState.docId,
+      start_line: chunk.start_line ?? 0,
+      end_line: chunk.end_line ?? 0,
+      start_char: chunk.start_char ?? 0,
+      end_char: chunk.end_char ?? 0,
+      length_lines: baseLines,
+      length_chars: baseLength,
+    };
+  }
+
   const total = Math.max(1, chunkState.lines.length);
   const startLine = clampLine(chunk.start_line || 1, total);
   const endLine = clampLine(chunk.end_line || startLine, total);
