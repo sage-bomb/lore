@@ -256,7 +256,7 @@ def ingest_text(
     # Detect document chunks using the OpenAI-backed pipeline used by the chunking UI.
     source_hint = {"filename": source_file} if source_file else None
     doc_id = derive_doc_id(explicit_doc_id=None, source=source_hint, text=text, collection=collection or "default")
-    detection = detect_or_reuse_chunks(doc_id=doc_id, text=text)
+    detection = detect_or_reuse_chunks(doc_id=doc_id, text=text, filename=source_file, url=None)
 
     base_meta = {
         "doc_id": doc_id,

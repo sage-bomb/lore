@@ -503,7 +503,7 @@ async function detectChunks() {
   const payload = { doc_id: docId, text, min_chars, target_chars, max_chars, overlap };
   let res;
   try {
-    res = await fetch("/api/chunking/detect", {
+    res = await fetch("/api/chunking/detect?persist=true", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -515,15 +515,23 @@ async function detectChunks() {
     return;
   }
 
-  const data = await res.json().catch(() => []);
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     setStatus(data?.detail || "Chunk detection failed.");
     toggleChunkSpinner(false);
     return;
   }
 
-  normalizeChunks(data || []);
-  setStatus(`Detected ${Array.isArray(data) ? data.length : 0} chunk(s).`);
+  const chunks = Array.isArray(data) ? data : (data.chunks || []);
+  const resolvedDocId = data.doc_id || docId;
+  chunkState.docId = resolvedDocId;
+  qs("chunkDocId").value = resolvedDocId;
+
+  normalizeChunks(chunks || []);
+  setStatus(`Detected ${chunks.length || 0} chunk(s). v${data.version || 1} ${data.persisted ? "draft saved" : ""}`.trim());
+  if (typeof window.loadDocLibrary === "function") {
+    window.loadDocLibrary();
+  }
   toggleChunkSpinner(false);
 }
 
@@ -591,6 +599,9 @@ async function finalizeChunks(finalized = true) {
     return false;
   }
   setStatus(`Saved ${payload.chunks.length} chunk(s) · version ${data.version || "?"}. Finalized: ${data.finalized ? "yes" : "no"}.`);
+  if (typeof window.loadDocLibrary === "function") {
+    window.loadDocLibrary();
+  }
   return true;
 }
 

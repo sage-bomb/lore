@@ -7,6 +7,13 @@ const docFindings = [];
 const docSpinnerId = "docSpinner";
 let docLibrary = [];
 
+function formatTimestamp(value) {
+  if (!value) return "";
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return "";
+  return dt.toLocaleString();
+}
+
 function extractDocId(payload) {
   if (!payload) return null;
   if (payload.chunk_state?.doc_id) return payload.chunk_state.doc_id;
@@ -463,6 +470,72 @@ async function analyzeDocument() {
   }
 }
 
+async function uploadDocsForChunking() {
+  const status = qs("docStatus");
+  const fileInput = qs("docFile");
+  const files = Array.from(fileInput?.files || []);
+  const minChars = val("chunkMinChars");
+  const targetChars = val("chunkTargetChars");
+  const maxChars = val("chunkMaxChars");
+  const overlap = val("chunkOverlap");
+  const collection = window.collectionName || null;
+
+  if (status) status.textContent = "";
+  if (!files.length) {
+    if (status) status.textContent = "Select one or more files to upload.";
+    return;
+  }
+
+  const form = new FormData();
+  if (collection) form.append("collection", collection);
+  if (minChars) form.append("min_chars", minChars);
+  if (targetChars) form.append("target_chars", targetChars);
+  if (maxChars) form.append("max_chars", maxChars);
+  if (overlap) form.append("overlap", overlap);
+  files.forEach((f) => form.append("files", f));
+
+  toggleDocSpinner(true, "Uploading for chunking…");
+  if (status) status.textContent = `Uploading ${files.length} file(s) for chunking...`;
+  logDoc(`Uploading ${files.length} file(s) to /api/chunking/upload...`);
+
+  let res;
+  try {
+    res = await fetch("/api/chunking/upload", { method: "POST", body: form });
+  } catch (e) {
+    console.error("Chunking upload failed", e);
+    if (status) status.textContent = "Network error uploading files.";
+    toggleDocSpinner(false);
+    return;
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (status) status.textContent = data.detail || "Upload failed.";
+    toggleDocSpinner(false);
+    return;
+  }
+
+  const docs = data.docs || [];
+  const primaryDocId = data.primary_doc_id;
+  if (status) status.textContent = `Uploaded ${docs.length} file(s) for chunking.${primaryDocId ? ` Loaded ${primaryDocId}.` : ""}`;
+  docs.forEach((d) => {
+    if (d.error) {
+      logDoc(`- ${d.file?.filename || "file"}: ERROR ${d.error}`);
+    } else {
+      logDoc(`- ${d.doc_id || d.file?.filename || "doc"}: ${d.chunk_count || 0} chunk(s), ${d.text_length || 0} chars`);
+    }
+  });
+  toggleDocSpinner(false);
+
+  loadDocLibrary().catch(() => {});
+  if (primaryDocId && window.loadDocumentById) {
+    const docInput = qs("chunkDocId");
+    if (docInput) docInput.value = primaryDocId;
+    window.loadDocumentById(primaryDocId);
+    switchTab("chunking");
+  }
+}
+
 function readFileText(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -550,12 +623,20 @@ function renderDocLibrary() {
   container.innerHTML = docLibrary
     .map((doc) => {
       const badge = doc.finalized ? `<span class="badge success">Finalized</span>` : `<span class="badge">Draft</span>`;
+      const subtitleParts = [
+        `v${doc.version || 1}`,
+        `${doc.chunk_count || 0} chunk(s)`,
+        `${doc.text_length || 0} chars`,
+      ];
+      if (doc.updated_at) subtitleParts.push(`updated ${formatTimestamp(doc.updated_at)}`);
+      const sourceLabel = doc.filename || doc.url;
       return `
         <div class="card">
           <div class="row space" style="align-items:baseline;">
             <div>
               <div class="chunk-title">${escapeHtml(doc.doc_id || "")}</div>
-              <div class="mini-text">v${doc.version || 1} · ${doc.chunk_count || 0} chunk(s) · ${doc.text_length || 0} chars</div>
+              <div class="mini-text">${subtitleParts.join(" · ")}</div>
+              ${sourceLabel ? `<div class="mini-text muted">${escapeHtml(sourceLabel)}</div>` : ""}
             </div>
             <div class="row" style="gap:8px; align-items:center;">
               ${badge}
@@ -642,6 +723,13 @@ document.addEventListener("DOMContentLoaded", () => {
       analyzeDocument();
     });
   }
+  const chunkUploadBtn = qs("chunkUploadDetectBtn");
+  if (chunkUploadBtn) {
+    chunkUploadBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      uploadDocsForChunking();
+    });
+  }
   const docRefresh = qs("docLibraryRefreshBtn");
   if (docRefresh) {
     docRefresh.addEventListener("click", (e) => {
@@ -677,6 +765,7 @@ window.loadConnections = loadConnections;
 window.fillEdgeForm = fillEdgeForm;
 window.deleteConnectionById = deleteConnectionById;
 window.analyzeDocument = analyzeDocument;
+window.uploadDocsForChunking = uploadDocsForChunking;
 window.markFinding = markFinding;
 window.switchTab = switchTab;
 window.openCardModal = openCardModal;
@@ -684,6 +773,7 @@ window.closeCardModal = closeCardModal;
 window.upsertDoc = upsertDoc;
 window.queryDocs = queryDocs;
 window.loadDocs = loadDocs;
+window.loadDocLibrary = loadDocLibrary;
 window.deleteChunk = deleteChunk;
 window.fillFormFromCard = fillFormFromCard;
 

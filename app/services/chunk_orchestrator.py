@@ -16,6 +16,11 @@ def _slugify(value: str) -> str:
     return cleaned or "doc"
 
 
+def slugify(value: str) -> str:
+    """Public wrapper to produce URL-safe-ish doc_id fragments."""
+    return _slugify(value)
+
+
 def derive_doc_id(
     *,
     explicit_doc_id: Optional[str],
@@ -42,6 +47,8 @@ def detect_or_reuse_chunks(
     doc_id: str,
     text: str,
     detection_overrides: Optional[Dict[str, int]] = None,
+    filename: Optional[str] = None,
+    url: Optional[str] = None,
 ) -> Dict[str, Any]:
     existing = get_chunks(doc_id)
     if existing:
@@ -53,7 +60,14 @@ def detect_or_reuse_chunks(
         )
         # Refresh stored text if new content is provided
         if text and text != (existing.get("text") or ""):
-            version, finalized = store_chunks(doc_id, existing["chunks"], finalized=existing.get("finalized", False), text=text)
+            version, finalized = store_chunks(
+                doc_id,
+                existing["chunks"],
+                finalized=existing.get("finalized", False),
+                text=text,
+                filename=filename,
+                url=url,
+            )
             existing = get_chunks(doc_id) or {
                 "chunks": existing["chunks"],
                 "version": version,
@@ -66,12 +80,14 @@ def detect_or_reuse_chunks(
             "finalized": bool(existing.get("finalized", False)),
             "reused": True,
             "doc_id": doc_id,
+            "filename": existing.get("filename"),
+            "url": existing.get("url"),
         }
 
     payload_kwargs = detection_overrides or {}
     detection_request = ChunkDetectionRequest(doc_id=doc_id, text=text, **payload_kwargs)
     chunks = detect_chunks(detection_request)
-    version, finalized = store_chunks(doc_id, chunks, finalized=False, text=text)
+    version, finalized = store_chunks(doc_id, chunks, finalized=False, text=text, filename=filename, url=url)
     logger.info(
         "Chunk orchestrator: detected %d chunk(s) (doc_id=%s, version=%d, finalized=%s)",
         len(chunks),
@@ -85,6 +101,8 @@ def detect_or_reuse_chunks(
         "finalized": finalized,
         "reused": False,
         "doc_id": doc_id,
+        "filename": filename,
+        "url": url,
     }
 
 
