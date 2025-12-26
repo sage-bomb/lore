@@ -527,8 +527,8 @@ async function detectChunks() {
   toggleChunkSpinner(false);
 }
 
-async function loadDocumentById() {
-  const docId = val("chunkDocId").trim();
+async function loadDocumentById(docIdOverride = null) {
+  const docId = docIdOverride || val("chunkDocId").trim();
   if (!docId) {
     setStatus("Enter a document ID to load.");
     return;
@@ -684,3 +684,6 @@ function initChunkReview() {
 }
 
 document.addEventListener("DOMContentLoaded", initChunkReview);
+
+// Expose loader for other modules
+window.loadDocumentById = loadDocumentById;

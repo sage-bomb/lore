@@ -5,6 +5,7 @@ import { cardTemplate } from "./cards.js";
 
 const docFindings = [];
 const docSpinnerId = "docSpinner";
+let docLibrary = [];
 
 function toggleDocSpinner(isLoading, message = "Contacting OpenAI…") {
   const el = qs(docSpinnerId);
@@ -496,6 +497,54 @@ function markFinding(id, status) {
   renderDocFindings();
 }
 
+async function loadDocLibrary() {
+  const limit = Number(val("docLibraryLimit") || "50") || 50;
+  const container = qs("docLibrary");
+  if (container) container.innerHTML = `<div class="muted">Loading documents...</div>`;
+  let res;
+  try {
+    res = await fetch(`/api/chunking/documents?limit=${encodeURIComponent(limit)}`);
+  } catch (e) {
+    if (container) container.innerHTML = `<div class="muted">Network error loading documents.</div>`;
+    return;
+  }
+  const data = await res.json().catch(() => []);
+  if (!res.ok) {
+    if (container) container.innerHTML = `<div class="muted">Failed to load documents.</div>`;
+    return;
+  }
+  docLibrary = Array.isArray(data) ? data : [];
+  renderDocLibrary();
+}
+
+function renderDocLibrary() {
+  const container = qs("docLibrary");
+  if (!container) return;
+  if (!docLibrary.length) {
+    container.innerHTML = `<div class="muted">No stored documents yet. Upload or paste a draft to get started.</div>`;
+    return;
+  }
+  container.innerHTML = docLibrary
+    .map((doc) => {
+      const badge = doc.finalized ? `<span class="badge success">Finalized</span>` : `<span class="badge">Draft</span>`;
+      return `
+        <div class="card">
+          <div class="row space" style="align-items:baseline;">
+            <div>
+              <div class="chunk-title">${escapeHtml(doc.doc_id || "")}</div>
+              <div class="mini-text">v${doc.version || 1} · ${doc.chunk_count || 0} chunk(s) · ${doc.text_length || 0} chars</div>
+            </div>
+            <div class="row" style="gap:8px; align-items:center;">
+              ${badge}
+              <button class="ghost js-doc-load" data-doc-id="${escapeHtml(doc.doc_id || "")}">Load</button>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
 // ---------------- Tabs & Modal ----------------
 function switchTab(name) {
   document.querySelectorAll(".tab").forEach(btn => {
@@ -556,6 +605,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (qs("docResults")) {
     renderDocFindings();
+    loadDocLibrary().catch(() => {});
   }
   if (window.collectionName && qs("cardsList")) {
     loadChunks(window.collectionName).catch(() => {});
@@ -569,6 +619,23 @@ document.addEventListener("DOMContentLoaded", () => {
       analyzeDocument();
     });
   }
+  const docRefresh = qs("docLibraryRefreshBtn");
+  if (docRefresh) {
+    docRefresh.addEventListener("click", (e) => {
+      e.preventDefault();
+      loadDocLibrary();
+    });
+  }
+  document.addEventListener("click", (e) => {
+    const loadBtn = e.target.closest(".js-doc-load");
+    if (loadBtn?.dataset?.docId && window.loadDocumentById) {
+      const docId = loadBtn.dataset.docId;
+      const target = qs("chunkDocId");
+      if (target) target.value = docId;
+      window.loadDocumentById(docId);
+      switchTab("chunking");
+    }
+  });
 });
 
 // ---------------- Back-compat aliases ----------------
