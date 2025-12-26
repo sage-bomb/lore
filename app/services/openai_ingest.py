@@ -1,11 +1,20 @@
 import json
 import logging
 import os
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
-from app.chroma_store import get_collection, normalize_collection_name, sanitize_metadata
+from app.chroma_store import (
+    get_collection,
+    normalize_collection_name,
+    sanitize_metadatas,
+)
 from app.library_store import list_connections, list_things, upsert_connection, upsert_thing
 from app.schemas import Connection, KNOWN_THING_TYPES, Thing
+from app.services.chunk_orchestrator import (
+    annotate_chunks,
+    detect_or_reuse_chunks,
+    derive_doc_id,
+)
 
 try:
     from openai import OpenAI
@@ -115,48 +124,52 @@ def dedupe_connections(conns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return list(unique.values())
 
 
-def normalize_chunks(
-    chunks: List[Dict[str, Any]],
-    collection_name: str,
-    base_metadata: Dict[str, Any] | None = None,
-) -> Tuple[List[str], List[str], List[Dict[str, Any]]]:
-    col = get_collection(collection_name)
-    ids: List[str] = []
-    texts: List[str] = []
-    metas: List[Dict[str, Any]] = []
+def _persist_chunk_draft(
+    *,
+    doc_id: str,
+    text: str,
+    source: Dict[str, Any] | None,
+    collection: str,
+) -> Dict[str, Any]:
+    detection = detect_or_reuse_chunks(doc_id=doc_id, text=text)
 
-    for ch in chunks or []:
-        cid = ch.get("chunk_id")
-        text = ch.get("text")
-        if not cid or not text:
-            continue
+    base_meta = {
+        "source_file": source.get("filename") if source else None,
+        "source_url": source.get("url") if source else None,
+        "source_file_id": source.get("file_id") if source else None,
+        "doc_id": doc_id,
+        "collection": collection,
+    }
+    base_meta = {k: v for k, v in base_meta.items() if v not in (None, "", [], {})}
 
-        existing = col.get(ids=[cid])
-        existing_ids = existing.get("ids") or []
-        if existing_ids:
-            continue
-
-        md = {
-            "chunk_kind": ch.get("chunk_kind") or "thing_summary",
-            "thing_id": ch.get("thing_id"),
-            "thing_type": normalize_thing_type(ch.get("thing_type")) if ch.get("thing_type") else None,
-            "edge_id": ch.get("edge_id"),
-            "tags": ch.get("tags") or [],
-        }
-        if base_metadata:
-            md.update(base_metadata)
-        md = {k: v for k, v in md.items() if v not in (None, [], {}, "")}
-        ids.append(cid)
-        texts.append(text)
-        metas.append(sanitize_metadata(md))
-
-    logger.info(
-        "OpenAI ingest: normalized chunks (incoming=%d, ready_for_upsert=%d)",
-        len(chunks or []),
-        len(ids),
+    annotated = annotate_chunks(
+        [c for c in detection["chunks"] if getattr(c, "finalized", False)],
+        base_meta,
+        chunk_kind="chapter_text",
     )
 
-    return ids, texts, metas
+    serialized_chunks: List[Dict[str, Any]] = []
+    for ch in detection["chunks"]:
+        data = ch.model_dump(mode="json")
+        merged = dict(base_meta)
+        merged.update(data)
+        serialized_chunks.append(merged)
+
+    logger.info(
+        "OpenAI ingest: chunk draft stored (doc_id=%s, version=%s, finalized=%s, reused=%s, finalized_chunks=%d)",
+        doc_id,
+        detection.get("version"),
+        detection.get("finalized"),
+        detection.get("reused"),
+        len(annotated["ids"]),
+    )
+
+    return {
+        "detection": detection,
+        "annotated": annotated,
+        "base_meta": base_meta,
+        "chunks_json": serialized_chunks,
+    }
 
 
 def ingest_lore_from_text(
@@ -184,6 +197,13 @@ def ingest_lore_from_text(
         len(extracted.get("chunks") or []),
     )
 
+    doc_id = derive_doc_id(
+        explicit_doc_id=source.get("file_id") if source else None,
+        source=source,
+        text=text,
+        collection=safe_collection,
+    )
+
     # Things
     raw_things = extracted.get("things") or []
     sanitized_things: List[Dict[str, Any]] = []
@@ -209,42 +229,35 @@ def ingest_lore_from_text(
             logger.exception("OpenAI ingest: failed to store connection with id=%s", c.get("edge_id"))
             raise
 
-    # Chunks
-    base_meta = {}
-    if source:
-        base_meta = {
-            "source_file": source.get("filename"),
-            "source_url": source.get("url"),
-            "source_file_id": source.get("file_id"),
-        }
+    chunk_result = _persist_chunk_draft(doc_id=doc_id, text=text, source=source, collection=safe_collection)
+    annotated_chunks = chunk_result["annotated"]
 
-    ids, texts, metas = normalize_chunks(extracted.get("chunks") or [], safe_collection, base_meta)
-    if ids:
+    if annotated_chunks["ids"]:
         col = get_collection(safe_collection)
-        col.upsert(ids=ids, documents=texts, metadatas=metas)
+        col.upsert(
+            ids=annotated_chunks["ids"],
+            documents=annotated_chunks["documents"],
+            metadatas=sanitize_metadatas(annotated_chunks["metadatas"]),
+        )
         logger.info(
-            "OpenAI ingest: stored %d chunk(s) in collection '%s'", len(ids), safe_collection
+            "OpenAI ingest: stored %d finalized chunk(s) in collection '%s'", len(annotated_chunks["ids"]), safe_collection
         )
     else:
-        logger.info("OpenAI ingest: no new chunks to store")
-
-    annotated_chunks = extracted.get("chunks") or []
-    if base_meta:
-        enriched: List[Dict[str, Any]] = []
-        for ch in annotated_chunks:
-            copy = dict(ch)
-            for k, v in base_meta.items():
-                copy.setdefault(k, v)
-            enriched.append(copy)
-        annotated_chunks = enriched
+        logger.info("OpenAI ingest: no finalized chunks to store (pending user edits)")
 
     return {
         "counts": {
             "things": len(new_things),
             "connections": len(new_conns),
-            "chunks": len(ids),
+            "chunks": len(annotated_chunks["ids"]),
         },
         "things": new_things,
         "connections": new_conns,
-        "chunks": annotated_chunks,
+        "chunks": chunk_result["chunks_json"],
+        "chunk_state": {
+            "doc_id": doc_id,
+            "version": chunk_result["detection"].get("version"),
+            "finalized": chunk_result["detection"].get("finalized"),
+            "reused": chunk_result["detection"].get("reused"),
+        },
     }
