@@ -29,6 +29,14 @@ function setStatus(msg) {
   if (el) el.textContent = msg;
 }
 
+function toggleChunkSpinner(isLoading, message = "Contacting OpenAI…") {
+  const el = qs("chunkSpinner");
+  if (!el) return;
+  const text = el.querySelector(".spinner-text");
+  if (text) text.textContent = message;
+  el.style.display = isLoading ? "inline-flex" : "none";
+}
+
 function computeOffsets(text) {
   const lines = text.split("\n");
   const offsets = [];
@@ -490,6 +498,7 @@ async function detectChunks() {
   qs("chunkDocId").value = docId;
   setDocumentText(text);
   setStatus("Detecting chunks...");
+  toggleChunkSpinner(true);
 
   const payload = { doc_id: docId, text, min_chars, target_chars, max_chars, overlap };
   let res;
@@ -502,17 +511,20 @@ async function detectChunks() {
   } catch (e) {
     console.error("Chunk detect failed", e);
     setStatus("Network error calling /api/chunking/detect.");
+    toggleChunkSpinner(false);
     return;
   }
 
   const data = await res.json().catch(() => []);
   if (!res.ok) {
     setStatus(data?.detail || "Chunk detection failed.");
+    toggleChunkSpinner(false);
     return;
   }
 
   normalizeChunks(data || []);
   setStatus(`Detected ${Array.isArray(data) ? data.length : 0} chunk(s).`);
+  toggleChunkSpinner(false);
 }
 
 async function loadDocumentById() {

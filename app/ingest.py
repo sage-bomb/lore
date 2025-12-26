@@ -1,12 +1,14 @@
 import itertools
 import re
 import uuid
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, get_args
 
 from app import library_store
 from app.openip_client import extract_lore
-from app.schemas import Connection, SearchChunk, Thing
+from app.schemas import ChunkKind, ChunkMetadata, Connection, SearchChunk, Thing
+from app.services.chunk_orchestrator import derive_doc_id, detect_or_reuse_chunks
 
+CHUNK_KIND_OPTIONS = set(get_args(ChunkKind))
 
 def _slugify(value: str) -> str:
     value = value.strip().lower()
@@ -171,6 +173,49 @@ def _chunks_for_connections(
     return chunks
 
 
+def _resolve_chunk_kind(value: Optional[str]) -> str:
+    if value and value in CHUNK_KIND_OPTIONS:
+        return value
+    return "misc"
+
+
+def _chunk_meta_to_search_chunk(
+    chunk: ChunkMetadata,
+    base_metadata: Dict[str, str],
+) -> SearchChunk:
+    resolved_kind = _resolve_chunk_kind(chunk.chunk_kind)
+    meta = {k: v for k, v in base_metadata.items() if v not in (None, "", [], {})}
+    meta.update(
+        {
+            "start_line": chunk.start_line,
+            "end_line": chunk.end_line,
+            "start_char": chunk.start_char,
+            "end_char": chunk.end_char,
+            "version": chunk.version,
+            "finalized": chunk.finalized,
+            "boundary_reasons": chunk.boundary_reasons,
+            "overlap": chunk.overlap,
+            "confidence": chunk.confidence,
+            "tags": chunk.tags,
+            "thing_type": chunk.thing_type,
+            "summary_title": chunk.summary_title,
+            "parent_chunk_id": chunk.parent_chunk_id,
+            "child_chunk_ids": chunk.child_chunk_ids,
+            "is_meta_chunk": chunk.is_meta_chunk,
+            "chunk_kind": resolved_kind,
+        }
+    )
+
+    return SearchChunk(
+        chunk_id=chunk.chunk_id,
+        text=chunk.text,
+        chunk_kind=resolved_kind,
+        thing_type=chunk.thing_type,
+        tags=chunk.tags,
+        **meta,
+    )
+
+
 def _reconcile_items(things: List[Thing], connections: List[Connection]) -> Tuple[List[Thing], List[Connection]]:
     existing_things = library_store.list_things()
     existing_by_id = {t.thing_id: t for t in existing_things}
@@ -208,7 +253,26 @@ def ingest_text(
 
     things, connections = _reconcile_items(things, connections)
 
+    # Detect document chunks using the OpenAI-backed pipeline used by the chunking UI.
+    source_hint = {"filename": source_file} if source_file else None
+    doc_id = derive_doc_id(explicit_doc_id=None, source=source_hint, text=text, collection=collection or "default")
+    detection = detect_or_reuse_chunks(doc_id=doc_id, text=text)
+
+    base_meta = {
+        "doc_id": doc_id,
+        "collection": collection,
+        "source_file": source_file,
+        "source_section": source_section,
+    }
+
+    detected_chunks = [
+        _chunk_meta_to_search_chunk(chunk, base_meta)
+        for chunk in detection["chunks"]
+    ]
+
+    # Preserve legacy thing/connection chunk generation for compatibility.
     chunks = list(itertools.chain(
+        detected_chunks,
         _chunks_for_things(things, source_file, source_section),
         _chunks_for_connections(connections, source_file, source_section),
     ))
@@ -219,4 +283,3 @@ def ingest_text(
         "chunks": chunks,
         "collection": collection,
     }
-

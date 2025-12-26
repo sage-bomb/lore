@@ -134,7 +134,10 @@
       </div>
 
       <div class="divider"></div>
-      <div id="docStatus" class="muted">Press analyze to send this document to OpenAI.</div>
+      <div class="row" style="align-items:center; gap:10px;">
+        <div id="docStatus" class="muted">Press analyze to send this document to OpenAI.</div>
+        <div id="docSpinner" class="spinner" style="display:none;"><span class="spinner-text">Contacting OpenAI…</span></div>
+      </div>
       <pre id="docLog" class="log" aria-live="polite"></pre>
       <div id="docResults" class="card-list" style="margin-top:12px;"></div>
     </section>
@@ -218,7 +221,10 @@
             </div>
           </div>
         </div>
-        <div id="chunkStatus" class="muted">Paste text or load by document ID to begin.</div>
+        <div class="row" style="align-items:center; gap:10px;">
+          <div id="chunkStatus" class="muted">Paste text or load by document ID to begin.</div>
+          <div id="chunkSpinner" class="spinner" style="display:none;"><span class="spinner-text">Contacting OpenAI…</span></div>
+        </div>
       </div>
 
       <div class="chunk-layout" style="margin-top:12px;">

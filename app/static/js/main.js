@@ -4,6 +4,15 @@ import {
 import { cardTemplate } from "./cards.js";
 
 const docFindings = [];
+const docSpinnerId = "docSpinner";
+
+function toggleDocSpinner(isLoading, message = "Contacting OpenAI…") {
+  const el = qs(docSpinnerId);
+  if (!el) return;
+  const text = el.querySelector(".spinner-text");
+  if (text) text.textContent = message;
+  el.style.display = isLoading ? "inline-flex" : "none";
+}
 
 // ---------------- Collections ----------------
 
@@ -355,6 +364,7 @@ async function analyzeDocument() {
     logDoc(`Sending ${files.length} file(s) to /api/ingest/upload...`);
   } else {
     if (status) status.textContent = "Sending to OpenAI...";
+    toggleDocSpinner(true);
     logDoc("Sending request to /api/ingest/openai...");
   }
 
@@ -385,10 +395,12 @@ async function analyzeDocument() {
       if (status) status.textContent = data.detail || `Ingestion failed (HTTP ${res.status}).`;
       console.error("Ingestion failed", res.status, data);
       logDoc(`Ingestion failed: ${data.detail || res.status}`);
+      if (!files.length) toggleDocSpinner(false);
       return;
     }
   } catch (e) {
     if (status) status.textContent = "Network error sending to OpenAI.";
+    toggleDocSpinner(false);
     console.error("Ingestion request error", e);
     logDoc("Network error sending to OpenAI.");
     return;
@@ -420,6 +432,7 @@ async function analyzeDocument() {
     if (status) status.textContent = `Ingested. Added ${data.counts?.things || 0} things, ${data.counts?.connections || 0} connections, ${data.counts?.chunks || 0} chunks.`;
     logDoc(`Ingest complete. Things: ${data.counts?.things || 0}, Connections: ${data.counts?.connections || 0}, Chunks: ${data.counts?.chunks || 0}`);
   }
+  toggleDocSpinner(false);
   if (collection) {
     loadChunks(collection).catch(() => {});
     loadConnections().catch(() => {});
