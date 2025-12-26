@@ -103,7 +103,7 @@ async function upsertChunk(collection) {
   });
 
   const data = await res.json().catch(() => ({}));
-  if (msg) msg.textContent = res.ok ? `Upserted ${data.upserted} chunk(s).` : (data.detail || "Error upserting chunk");
+  if (msg) msg.textContent = res.ok ? `Saved ${data.upserted} chunk(s).` : (data.detail || "Error saving chunk");
   if (res.ok) {
     loadChunks(collection).catch(() => {});
     closeCardModal();
@@ -657,6 +657,21 @@ function switchTab(name) {
   document.querySelectorAll(".tab-panel").forEach(panel => {
     panel.style.display = panel.dataset.panel === name ? "block" : "none";
   });
+  if (name === "chunking") {
+    const target = document.getElementById("chunkReviewPanel");
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function setSidebarMode(mode) {
+  const inspector = document.getElementById("sidebarInspector");
+  const knowledge = document.getElementById("sidebarKnowledge");
+  const buttons = document.querySelectorAll(".sidebar-mode-btn");
+  buttons.forEach((btn) => btn.classList.toggle("active", btn.dataset.mode === mode));
+  if (inspector && knowledge) {
+    inspector.style.display = mode === "knowledge" ? "none" : "block";
+    knowledge.style.display = mode === "knowledge" ? "block" : "none";
+  }
 }
 
 function openCardModal() {
@@ -747,6 +762,13 @@ document.addEventListener("DOMContentLoaded", () => {
       switchTab("chunking");
     }
   });
+  document.querySelectorAll(".sidebar-mode-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      setSidebarMode(btn.dataset.mode === "knowledge" ? "knowledge" : "inspector");
+    });
+  });
+  setSidebarMode("inspector");
 });
 
 // ---------------- Back-compat aliases ----------------
