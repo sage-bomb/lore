@@ -6,6 +6,12 @@ import { cardTemplate } from "./cards.js";
 const docFindings = [];
 const docSpinnerId = "docSpinner";
 let docLibrary = [];
+const chatMessages = [];
+const contextPipe = [
+  { id: "ctx-1", title: "Chunk draft placeholder", detail: "Lines 12-30 · chapter_text · v1", pinned: true },
+  { id: "ctx-2", title: "Character summary (sample)", detail: "thing_summary · character.sahla", pinned: false },
+  { id: "ctx-3", title: "Rule note", detail: "rule_text · magic_concept.lightweave", pinned: false },
+];
 
 function formatTimestamp(value) {
   if (!value) return "";
@@ -666,12 +672,53 @@ function switchTab(name) {
 function setSidebarMode(mode) {
   const inspector = document.getElementById("sidebarInspector");
   const knowledge = document.getElementById("sidebarKnowledge");
+  const chat = document.getElementById("sidebarChat");
   const buttons = document.querySelectorAll(".sidebar-mode-btn");
   buttons.forEach((btn) => btn.classList.toggle("active", btn.dataset.mode === mode));
   if (inspector && knowledge) {
-    inspector.style.display = mode === "knowledge" ? "none" : "block";
+    inspector.style.display = mode === "knowledge" || mode === "chat" ? "none" : "block";
     knowledge.style.display = mode === "knowledge" ? "block" : "none";
   }
+  if (chat) {
+    chat.style.display = mode === "chat" ? "block" : "none";
+  }
+}
+
+function renderChatMessages() {
+  const list = qs("chatMessages");
+  if (!list) return;
+  if (!chatMessages.length) {
+    list.innerHTML = `<div class="muted">No messages yet. Start the conversation below.</div>`;
+    return;
+  }
+  list.innerHTML = chatMessages.map((m) => `
+    <div class="chat-bubble ${m.author === "assistant" ? "assistant" : "user"}">
+      <div class="chat-meta">${escapeHtml(m.author)} · ${m.time}</div>
+      <div>${escapeHtml(m.text)}</div>
+    </div>
+  `).join("");
+}
+
+function renderContextPipe() {
+  const list = qs("contextPipeList");
+  if (!list) return;
+  list.innerHTML = contextPipe.map((item) => `
+    <div class="context-item ${item.pinned ? "pinned" : ""}" data-id="${escapeHtml(item.id)}">
+      <div class="row">
+        <div class="chunk-title">${escapeHtml(item.title)}</div>
+        <button class="ghost js-pin-toggle" data-id="${escapeHtml(item.id)}">${item.pinned ? "Unpin" : "Pin"}</button>
+      </div>
+      <div class="mini-text">${escapeHtml(item.detail)}</div>
+      <div class="pill-row"><span class="pill">Placeholder</span><span class="pill">Context</span></div>
+    </div>
+  `).join("");
+}
+
+function addChatMessage(text, author = "user") {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  chatMessages.push({ text: trimmed, author, time: new Date().toLocaleTimeString() });
+  renderChatMessages();
 }
 
 function openCardModal() {
@@ -731,6 +778,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   document.addEventListener("click", handleEditClick);
   document.addEventListener("click", handleConnectionAction);
+  document.addEventListener("click", (e) => {
+    const pinBtn = e.target.closest(".js-pin-toggle");
+    if (pinBtn?.dataset?.id) {
+      const idx = contextPipe.findIndex((c) => c.id === pinBtn.dataset.id);
+      if (idx !== -1) {
+        contextPipe[idx].pinned = !contextPipe[idx].pinned;
+        renderContextPipe();
+      }
+    }
+  });
   const analyzeBtn = qs("analyzeDocBtn");
   if (analyzeBtn) {
     analyzeBtn.addEventListener("click", (e) => {
@@ -765,9 +822,27 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".sidebar-mode-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
-      setSidebarMode(btn.dataset.mode === "knowledge" ? "knowledge" : "inspector");
+      const mode = btn.dataset.mode === "knowledge" ? "knowledge" : btn.dataset.mode === "chat" ? "chat" : "inspector";
+      setSidebarMode(mode);
     });
   });
+  const sendBtn = qs("chatSendBtn");
+  const chatInput = qs("chatInput");
+  if (sendBtn && chatInput) {
+    const send = () => {
+      addChatMessage(chatInput.value || "", "user");
+      chatInput.value = "";
+    };
+    sendBtn.addEventListener("click", (e) => { e.preventDefault(); send(); });
+    chatInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+  }
+  renderChatMessages();
+  renderContextPipe();
   setSidebarMode("inspector");
 });
 

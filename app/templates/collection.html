@@ -132,6 +132,7 @@
         <div class="mode-switch">
           <button class="ghost sidebar-mode-btn active" data-mode="inspector">Inspector</button>
           <button class="ghost sidebar-mode-btn" data-mode="knowledge">Knowledge</button>
+          <button class="ghost sidebar-mode-btn" data-mode="chat">Chat</button>
         </div>
 
         <div id="sidebarInspector" class="sidebar-mode" style="display:block;">
@@ -284,6 +285,32 @@
 
             <div class="divider"></div>
             <div id="connectionsList"></div>
+          </div>
+        </div>
+
+        <div id="sidebarChat" class="sidebar-mode" style="display:none;">
+          <div class="section-heading" style="margin-top:10px;">
+            <div class="eyebrow">Chat</div>
+            <h3>Ask your draft</h3>
+            <p class="mini-text">Stubbed chat UI ready for future retrieval and response wiring.</p>
+          </div>
+
+          <div class="chat-messages" id="chatMessages" aria-live="polite">
+            <div class="muted">No messages yet. Start the conversation below.</div>
+          </div>
+
+          <div class="chat-input">
+            <input id="chatInput" type="text" placeholder="Ask about a character, scene, or note..." />
+            <button id="chatSendBtn">Send</button>
+          </div>
+
+          <div class="panel-subsection">
+            <div class="section-heading">
+              <div class="eyebrow">Context pipe</div>
+              <h3>Retrieved context</h3>
+              <p class="mini-text">Placeholder items with pin/unpin controls for future RAG.</p>
+            </div>
+            <div id="contextPipeList" class="context-pipe-list"></div>
           </div>
         </div>
       </div>
