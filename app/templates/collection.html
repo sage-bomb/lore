@@ -1,114 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
-  <section class="hero">
-    <div>
-      <div class="eyebrow">Collection</div>
-      <h1>{{ collection }}</h1>
-      <p>Card-first editing, streamlined search, and connection management in one dark workspace.</p>
-    </div>
-    <div class="hero-card">
-      <div class="small-label">Quick actions</div>
-      <div class="row" style="margin-top:10px;">
-        <button class="ghost" onclick="loadChunks('{{ collection }}')">Refresh cards</button>
-        <button class="ghost" onclick="queryChunks('{{ collection }}')">Search now</button>
-      </div>
-      <div class="muted" style="margin-top:8px;">Use cards below to add lore, edit metadata, or delete connections fast.</div>
-    </div>
-  </section>
-
-  <div class="tabs">
-    <button class="tab active" data-tab="lore" onclick="switchTab('lore')">Lore cards</button>
-    <button class="tab" data-tab="chunking" onclick="switchTab('chunking')">Chunk review</button>
-    <button class="tab" data-tab="connections" onclick="switchTab('connections')">Connections</button>
-  </div>
-
-  <div class="tab-panel" data-panel="lore" style="display:block;">
-    <section class="card">
-      <div class="card-header">
-        <div>
-          <h2 style="margin:0;">Search or browse</h2>
-          <p class="card-subtitle">Both actions feed the same card list below for easy review.</p>
+  <section class="workspace" id="chunkReviewPanel">
+    <aside class="sidebar-left">
+      <div class="panel">
+        <div class="section-heading">
+          <div class="eyebrow">Upload</div>
+          <h2>Document intake</h2>
+          <p class="card-subtitle">Store drafts and prep them for chunking.</p>
         </div>
-        <div class="toolbar">
-          <button class="ghost" onclick="queryChunks('{{ collection }}')">Search</button>
-          <button class="secondary" onclick="loadChunks('{{ collection }}')">Browse</button>
-          <button onclick="openCardModal()">Add card</button>
-          <input id="browseLimit" type="number" min="1" max="200" value="25" style="width:110px;"/>
-        </div>
-      </div>
-      <div class="grid three-col">
-        <div class="stack">
-          <label>Query text</label>
-          <input id="queryText" type="text" placeholder="e.g. Sahla's birthplace"/>
-        </div>
-        <div class="stack">
-          <label>Top results</label>
-          <input id="topK" type="number" min="1" max="50" value="8"/>
-        </div>
-        <div class="stack">
-          <label>Chunk kinds</label>
-          <select id="queryChunkKind" multiple size="6" title="chunk_kinds (optional)">
-            <option value="thing_summary">thing_summary</option>
-            <option value="thing_notes">thing_notes</option>
-            <option value="connection_note">connection_note</option>
-            <option value="chapter_text">chapter_text</option>
-            <option value="scene_text">scene_text</option>
-            <option value="rule_text">rule_text</option>
-            <option value="misc">misc</option>
-          </select>
-        </div>
-        <div class="stack">
-          <label>Thing types</label>
-          <select id="queryThingType" multiple size="6" title="thing_types (optional)">
-            <option value="character">character</option>
-            <option value="place">place</option>
-            <option value="faction">faction</option>
-            <option value="culture">culture</option>
-            <option value="race">race</option>
-            <option value="deity">deity</option>
-            <option value="artifact">artifact</option>
-            <option value="creature">creature</option>
-            <option value="magic_concept">magic_concept</option>
-            <option value="ritual">ritual</option>
-            <option value="currency">currency</option>
-            <option value="term">term</option>
-            <option value="event">event</option>
-            <option value="chapter">chapter</option>
-            <option value="scene">scene</option>
-            <option value="lore_entry">lore_entry</option>
-            <option value="style_rule">style_rule</option>
-            <option value="other">other</option>
-          </select>
-        </div>
-        <div class="stack">
-          <label>thing_id filter</label>
-          <input id="queryThingId" type="text" placeholder="Optional exact thing_id"/>
-        </div>
-        <div class="stack">
-          <label>Tag filter</label>
-          <input id="queryTags" type="text" placeholder="tags (comma-separated)"/>
-        </div>
-      </div>
-      <div class="divider"></div>
-      <div id="cardsStatus" class="muted">Use Search or Browse to populate cards.</div>
-      <div id="cardsList" class="card-list" style="margin-top:10px;"></div>
-    </section>
-  </div>
-
-  <div class="tab-panel" data-panel="chunking" style="display:none;">
-    <section class="card" id="chunkReviewPanel">
-      <div class="card-header">
-        <div>
-          <h2 style="margin:0;">Document ingest &amp; chunk review</h2>
-          <p class="card-subtitle">Upload drafts, view detected chunks, adjust boundaries, and embed finalized slices.</p>
-        </div>
-        <div class="row">
-          <button class="ghost" id="chunkSaveDraftBtn">Save draft</button>
-          <button id="chunkSaveEmbedBtn">Save + Embed</button>
-        </div>
-      </div>
-
-      <div class="grid two-col">
         <div class="stack">
           <label>Upload documents</label>
           <input id="docFile" type="file" accept=".txt,.md,.doc,.docx,.pdf" multiple/>
@@ -118,52 +17,131 @@
           <label>Notes for the model</label>
           <textarea id="docNotes" rows="3" placeholder="What should the model look for? e.g., characters, locations, rules"></textarea>
         </div>
-      </div>
-
-      <div class="stack" style="margin-top:12px;">
-        <label>Paste document text (optional)</label>
-        <textarea id="docText" rows="5" placeholder="If no file is uploaded, paste text here."></textarea>
-      </div>
-
-      <div class="stack" style="margin-top:12px;">
-        <label>Optional URL</label>
-        <input id="docUrl" type="text" placeholder="Paste a link to a chapter or doc (UI only)"/>
-      </div>
-
-      <div class="row" style="align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap;">
-        <button class="secondary" id="chunkUploadDetectBtn">Upload + Detect</button>
-        <button class="ghost" id="analyzeDocBtn">Analyze with OpenAI</button>
+        <div class="stack">
+          <label>Optional URL</label>
+          <input id="docUrl" type="text" placeholder="Paste a link to a chapter or doc (UI only)"/>
+        </div>
+        <div class="stack">
+          <label>Paste document text (optional)</label>
+          <textarea id="docText" rows="4" placeholder="If no file is uploaded, paste text here."></textarea>
+        </div>
+        <div class="row" style="align-items:center; gap:10px; flex-wrap:wrap;">
+          <button class="secondary" id="chunkUploadDetectBtn">Upload + Detect</button>
+          <button class="ghost" id="analyzeDocBtn">Analyze with OpenAI</button>
+        </div>
         <div id="docStatus" class="muted">Upload files to store drafts and auto-detect chunks. OpenAI analysis is optional.</div>
         <div id="docSpinner" class="spinner" style="display:none;"><span class="spinner-text">Contacting OpenAI…</span></div>
+        <pre id="docLog" class="log" aria-live="polite"></pre>
+        <div class="panel-subsection">
+          <div class="small-label">Model findings</div>
+          <div id="docResults" class="card-list" style="margin-top:8px;"></div>
+        </div>
       </div>
-      <pre id="docLog" class="log" aria-live="polite"></pre>
-      <div id="docResults" class="card-list" style="margin-top:12px;"></div>
 
-      <div class="divider"></div>
-      <div class="row space" style="align-items:center;">
-        <div>
-          <h3 style="margin:0;">Stored documents</h3>
+      <div class="panel">
+        <div class="section-heading">
+          <div class="eyebrow">Library</div>
+          <h2>Stored documents</h2>
           <p class="mini-text">Browse uploaded drafts and load them into the chunk reviewer.</p>
         </div>
-        <div class="row" style="gap:8px;">
+        <div class="row" style="gap:8px; margin-top:6px;">
           <input id="docLibraryLimit" type="number" min="1" max="200" value="50" style="width:110px;"/>
           <button class="ghost" id="docLibraryRefreshBtn">Refresh list</button>
         </div>
+        <div id="docLibrary" class="card-list simple-list" style="margin-top:8px;"></div>
       </div>
-      <div id="docLibrary" class="card-list" style="margin-top:8px;"></div>
+    </aside>
 
-      <div class="grid two-col" style="margin-bottom:12px;">
-        <div class="stack">
-          <label>Document ID</label>
-          <div class="row" style="align-items:flex-end;">
-            <input id="chunkDocId" type="text" placeholder="doc.example.chapter1"/>
-            <button class="ghost" id="chunkLoadBtn">Load by ID</button>
-          </div>
-          <div class="input-note">IDs persist drafts; provide one when detecting chunks.</div>
+    <section class="editor-pane">
+      <div class="panel editor-header">
+        <div>
+          <div class="eyebrow">Chunk workspace</div>
+          <h1>{{ collection }}</h1>
+          <p class="card-subtitle">Upload drafts, refine chunks, and index finalized slices.</p>
         </div>
-        <div class="stack">
-          <label>Chunk metadata defaults (for embedding)</label>
-          <div class="grid three-col" style="gap:8px;">
+        <div class="row">
+          <button id="chunkDetectBtn">Detect chunks</button>
+        </div>
+      </div>
+
+      <div class="panel editor-controls">
+        <div class="row wrap" style="align-items:flex-end; gap:14px;">
+          <div class="inline-stack" style="min-width:260px;">
+            <label>Document ID</label>
+            <div class="row" style="align-items:flex-end; gap:10px;">
+              <input id="chunkDocId" type="text" placeholder="doc.example.chapter1"/>
+              <button class="ghost" id="chunkLoadBtn">Load</button>
+            </div>
+            <div class="input-note">IDs persist drafts; provide one when detecting chunks.</div>
+          </div>
+          <details class="panel-subsection" style="margin:0; width:100%;">
+            <summary>More actions</summary>
+            <div class="row" style="gap:10px; align-items:center; margin-top:10px;">
+              <button class="ghost" id="chunkSaveDraftBtn">Save draft</button>
+              <button class="secondary" id="chunkSaveEmbedBtn">Save + Index</button>
+              <button class="ghost" id="chunkSelectionBtn">Create chunk from selection</button>
+              <button class="ghost" id="chunkScrollTopBtn">Scroll to start</button>
+            </div>
+            <div class="compact-grid" style="margin-top:10px;">
+              <div class="stack mini">
+                <span class="mini-label">Min chars</span>
+                <input id="chunkMinChars" type="number" value="400"/>
+              </div>
+              <div class="stack mini">
+                <span class="mini-label">Target chars</span>
+                <input id="chunkTargetChars" type="number" value="800"/>
+              </div>
+              <div class="stack mini">
+                <span class="mini-label">Max chars</span>
+                <input id="chunkMaxChars" type="number" value="1200"/>
+              </div>
+              <div class="stack mini">
+                <span class="mini-label">Overlap</span>
+                <input id="chunkOverlap" type="number" value="0"/>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="row space" style="align-items:center;">
+          <label style="margin:0;">Document text</label>
+        </div>
+        <textarea id="chunkDocText" rows="8" placeholder="Paste or load document text..."></textarea>
+      </div>
+
+      <div class="panel overlay-panel">
+        <div class="row space" style="align-items:center;">
+          <div>
+            <div class="small-label">Document with chunk overlays</div>
+            <p class="mini-text" style="margin:2px 0 0;">Scroll to review boundaries and adjust from the inspector.</p>
+          </div>
+        </div>
+        <div class="chunk-viewport" id="chunkViewport" aria-label="Chunk review viewport"></div>
+      </div>
+    </section>
+
+    <aside class="sidebar-right">
+      <div class="panel">
+        <div class="section-heading">
+          <div class="eyebrow">Workspace</div>
+          <h3>Right pane</h3>
+          <p class="mini-text">Inspector by default; switch to Knowledge to browse cards.</p>
+        </div>
+        <div class="mode-switch">
+          <button class="ghost sidebar-mode-btn active" data-mode="inspector">Inspector</button>
+          <button class="ghost sidebar-mode-btn" data-mode="knowledge">Knowledge</button>
+          <button class="ghost sidebar-mode-btn" data-mode="chat">Chat</button>
+        </div>
+
+        <div id="sidebarInspector" class="sidebar-mode" style="display:block;">
+          <div class="section-heading" style="margin-top:10px;">
+            <div class="eyebrow">Inspector</div>
+            <h3>Chunk defaults</h3>
+            <p class="mini-text">Apply defaults before indexing chunks into the collection.</p>
+          </div>
+          <div class="compact-grid" style="margin-top:8px;">
             <div class="stack">
               <span class="mini-label">Chunk kind</span>
               <select id="chunkDefaultKind">
@@ -187,112 +165,164 @@
               <input id="chunkDefaultTags" type="text" placeholder="chapter, draft"/>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div class="stack">
-        <label>Document text</label>
-        <textarea id="chunkDocText" rows="6" placeholder="Paste or load document text..."></textarea>
-        <div class="row" style="justify-content:space-between;">
-          <div class="row">
-            <button class="ghost" id="chunkDetectBtn">Detect chunks</button>
-            <div class="pill">Calls /api/chunking/detect?persist=true</div>
-          </div>
-          <div class="row">
-            <div class="stack mini">
-              <span class="mini-label">Min chars</span>
-              <input id="chunkMinChars" type="number" value="400" style="width:120px;"/>
-            </div>
-            <div class="stack mini">
-              <span class="mini-label">Target chars</span>
-              <input id="chunkTargetChars" type="number" value="800" style="width:120px;"/>
-            </div>
-            <div class="stack mini">
-              <span class="mini-label">Max chars</span>
-              <input id="chunkMaxChars" type="number" value="1200" style="width:120px;"/>
-            </div>
-            <div class="stack mini">
-              <span class="mini-label">Overlap</span>
-              <input id="chunkOverlap" type="number" value="0" style="width:100px;"/>
-            </div>
+          <div class="panel-subsection">
+            <div id="docSummary"></div>
+            <label>Chunks</label>
+            <div id="chunkList" class="chunk-list"></div>
           </div>
         </div>
-        <div class="row" style="align-items:center; gap:10px;">
-          <div id="chunkStatus" class="muted">Paste text or load by document ID to begin.</div>
-          <div id="chunkSpinner" class="spinner" style="display:none;"><span class="spinner-text">Contacting OpenAI…</span></div>
-        </div>
-      </div>
 
-      <div class="chunk-layout" style="margin-top:12px;">
-        <div class="stack chunk-main">
-          <label>Document with chunk overlays</label>
-          <div class="chunk-viewport" id="chunkViewport" aria-label="Chunk review viewport"></div>
-          <div class="row" style="margin-top:6px; justify-content:space-between;">
-            <div class="muted" id="chunkStats"></div>
-            <div class="row" style="gap:8px;">
-              <button class="ghost" id="chunkSelectionBtn">Create chunk from selection</button>
-              <button class="secondary" id="chunkScrollTopBtn">Scroll to start</button>
+        <div id="sidebarKnowledge" class="sidebar-mode" style="display:none;">
+          <div class="section-heading" style="margin-top:10px;">
+            <div class="eyebrow">Knowledge</div>
+            <h3>Lore cards</h3>
+            <p class="mini-text">Search or browse without leaving the editor.</p>
+          </div>
+          <div class="grid two-col">
+            <div class="stack">
+              <label>Query text</label>
+              <input id="queryText" type="text" placeholder="e.g. Sahla's birthplace"/>
+            </div>
+            <div class="stack">
+              <label>Top results</label>
+              <input id="topK" type="number" min="1" max="50" value="8"/>
+            </div>
+            <div class="stack">
+              <label>Chunk kinds</label>
+              <select id="queryChunkKind" multiple size="6" title="chunk_kinds (optional)">
+                <option value="thing_summary">thing_summary</option>
+                <option value="thing_notes">thing_notes</option>
+                <option value="connection_note">connection_note</option>
+                <option value="chapter_text">chapter_text</option>
+                <option value="scene_text">scene_text</option>
+                <option value="rule_text">rule_text</option>
+                <option value="misc">misc</option>
+              </select>
+            </div>
+            <div class="stack">
+              <label>Thing types</label>
+              <select id="queryThingType" multiple size="6" title="thing_types (optional)">
+                <option value="character">character</option>
+                <option value="place">place</option>
+                <option value="faction">faction</option>
+                <option value="culture">culture</option>
+                <option value="race">race</option>
+                <option value="deity">deity</option>
+                <option value="artifact">artifact</option>
+                <option value="creature">creature</option>
+                <option value="magic_concept">magic_concept</option>
+                <option value="ritual">ritual</option>
+                <option value="currency">currency</option>
+                <option value="term">term</option>
+                <option value="event">event</option>
+                <option value="chapter">chapter</option>
+                <option value="scene">scene</option>
+                <option value="lore_entry">lore_entry</option>
+                <option value="style_rule">style_rule</option>
+                <option value="other">other</option>
+              </select>
+            </div>
+            <div class="stack">
+              <label>thing_id filter</label>
+              <input id="queryThingId" type="text" placeholder="Optional exact thing_id"/>
+            </div>
+            <div class="stack">
+              <label>Tag filter</label>
+              <input id="queryTags" type="text" placeholder="tags (comma-separated)"/>
             </div>
           </div>
-        </div>
-        <div class="stack chunk-sidebar">
-          <div id="docSummary"></div>
-          <label>Chunk list &amp; handles</label>
-          <div id="chunkList" class="chunk-list"></div>
-        </div>
-      </div>
-    </section>
-  </div>
+          <div class="divider"></div>
+          <div class="toolbar" style="margin-top:4px;">
+            <button class="ghost" onclick="queryChunks('{{ collection }}')">Search</button>
+            <button class="secondary" onclick="loadChunks('{{ collection }}')">Browse</button>
+            <button onclick="openCardModal()">Add card</button>
+            <input id="browseLimit" type="number" min="1" max="200" value="25" style="width:110px;"/>
+          </div>
+          <div id="cardsStatus" class="muted">Use Search or Browse to populate cards.</div>
+          <div id="cardsList" class="card-list" style="margin-top:10px;"></div>
 
-  <div class="tab-panel" data-panel="connections" style="display:none;">
-    <section class="card">
-      <div class="card-header">
-        <div>
-          <h2 style="margin:0;">Connections</h2>
-          <p class="card-subtitle">Upsert or delete relationships between things.</p>
-        </div>
-        <div class="row">
-          <button class="ghost" onclick="loadConnections()">Refresh</button>
-        </div>
-      </div>
-      <div class="grid two-col">
-        <div class="stack">
-          <label>Edge ID</label>
-          <input id="edgeFormId" type="text" placeholder="edge.character.sahla.homeworld"/>
-        </div>
-        <div class="stack">
-          <label>Relationship type</label>
-          <input id="edgeRelType" type="text" placeholder="homeworld_of"/>
-        </div>
-      </div>
-      <div class="grid three-col" style="margin-top:12px;">
-        <div class="stack">
-          <label>Source thing ID</label>
-          <input id="edgeSrc" type="text" placeholder="character.sahla"/>
-        </div>
-        <div class="stack">
-          <label>Destination thing ID</label>
-          <input id="edgeDst" type="text" placeholder="place.kaar"/>
-        </div>
-        <div class="stack">
-          <label>Tags</label>
-          <input id="edgeTags" type="text" placeholder="comma separated"/>
-        </div>
-      </div>
-      <div class="stack" style="margin-top:12px;">
-        <label>Note</label>
-        <textarea id="edgeNote" rows="3" placeholder="Short description of the connection"></textarea>
-      </div>
+          <div class="panel-subsection" style="margin-top:14px;">
+            <div class="section-heading">
+              <div class="eyebrow">Connections</div>
+              <h3>Relationships</h3>
+              <p class="mini-text">Save or delete relationships between things.</p>
+            </div>
+            <div class="grid two-col">
+              <div class="stack">
+                <label>Edge ID</label>
+                <input id="edgeFormId" type="text" placeholder="edge.character.sahla.homeworld"/>
+              </div>
+              <div class="stack">
+                <label>Relationship type</label>
+                <input id="edgeRelType" type="text" placeholder="homeworld_of"/>
+              </div>
+            </div>
+            <div class="grid three-col" style="margin-top:12px;">
+              <div class="stack">
+                <label>Source thing ID</label>
+                <input id="edgeSrc" type="text" placeholder="character.sahla"/>
+              </div>
+              <div class="stack">
+                <label>Destination thing ID</label>
+                <input id="edgeDst" type="text" placeholder="place.kaar"/>
+              </div>
+              <div class="stack">
+                <label>Tags</label>
+                <input id="edgeTags" type="text" placeholder="comma separated"/>
+              </div>
+            </div>
+            <div class="stack" style="margin-top:12px;">
+              <label>Note</label>
+              <textarea id="edgeNote" rows="3" placeholder="Short description of the connection"></textarea>
+            </div>
 
-      <div class="row" style="margin-top:12px;">
-        <button onclick="saveConnection()">Save connection</button>
-        <button class="danger" onclick="deleteConnection()">Delete connection</button>
-        <div id="connectionsMsg" class="muted"></div>
-      </div>
+            <div class="row" style="margin-top:12px;">
+              <button onclick="saveConnection()">Save connection</button>
+              <button class="danger" onclick="deleteConnection()">Delete connection</button>
+              <div id="connectionsMsg" class="muted"></div>
+            </div>
 
-      <div class="divider"></div>
-      <div id="connectionsList"></div>
-    </section>
+            <div class="divider"></div>
+            <div id="connectionsList"></div>
+          </div>
+        </div>
+
+        <div id="sidebarChat" class="sidebar-mode" style="display:none;">
+          <div class="section-heading" style="margin-top:10px;">
+            <div class="eyebrow">Chat</div>
+            <h3>Ask your draft</h3>
+            <p class="mini-text">Stubbed chat UI ready for future retrieval and response wiring.</p>
+          </div>
+
+          <div class="chat-messages" id="chatMessages" aria-live="polite">
+            <div class="muted">No messages yet. Start the conversation below.</div>
+          </div>
+
+          <div class="chat-input">
+            <input id="chatInput" type="text" placeholder="Ask about a character, scene, or note..." />
+            <button id="chatSendBtn">Send</button>
+          </div>
+
+          <div class="panel-subsection">
+            <div class="section-heading">
+              <div class="eyebrow">Context pipe</div>
+              <h3>Retrieved context</h3>
+              <p class="mini-text">Placeholder items with pin/unpin controls for future RAG.</p>
+            </div>
+            <div id="contextPipeList" class="context-pipe-list"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <div class="statusbar">
+    <div id="chunkStatus" class="status-text">Paste text or load by document ID to begin.</div>
+    <div class="row" style="gap:10px; align-items:center;">
+      <div class="mini-text" id="chunkStats"></div>
+      <div id="chunkSpinner" class="spinner" style="display:none;"><span class="spinner-text">Contacting OpenAI…</span></div>
+    </div>
   </div>
 
   <div id="cardModal" class="modal" aria-hidden="true">

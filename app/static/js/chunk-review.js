@@ -17,7 +17,15 @@ const chunkState = {
   approxLineHeight: 0,
   viewport: null,
   collection: null,
+  isDirty: false,
+  lastSavedAt: null,
+  version: null,
+  statusMessage: "Paste text or load by document ID to begin.",
+  metaStats: { chunkCount: 0, lines: 0, chars: 0 },
 };
+
+let autosaveTimer = null;
+const AUTOSAVE_DELAY = 1000;
 
 function clampLine(line, total = null) {
   const max = total ?? Math.max(1, chunkState.lines.length || 1);
@@ -25,8 +33,8 @@ function clampLine(line, total = null) {
 }
 
 function setStatus(msg) {
-  const el = qs("chunkStatus");
-  if (el) el.textContent = msg;
+  chunkState.statusMessage = msg || "";
+  renderStatusBar();
 }
 
 function toggleChunkSpinner(isLoading, message = "Contacting OpenAI…") {
@@ -48,6 +56,56 @@ function computeOffsets(text) {
   }
   offsets.push(cursor);
   return offsets;
+}
+
+function formatTime(dt) {
+  if (!dt) return "Not yet saved";
+  try {
+    return dt.toLocaleTimeString();
+  } catch (e) {
+    return "Not yet saved";
+  }
+}
+
+function renderStatusBar() {
+  const statusEl = qs("chunkStatus");
+  const statsEl = qs("chunkStats");
+  if (!statusEl || !statsEl) return;
+  const prefix = chunkState.isDirty ? "Unsaved changes" : "Draft saved";
+  const version = chunkState.version ? `v${chunkState.version}` : "v?";
+  const chunksPart = `${chunkState.metaStats.chunkCount || 0} chunk(s)`;
+  const linesPart = `${chunkState.metaStats.lines || 0} line(s) · ${chunkState.metaStats.chars || 0} chars`;
+  const lastSaved = formatTime(chunkState.lastSavedAt);
+  const docPart = chunkState.docId ? `doc ${chunkState.docId}` : "no doc id";
+  statusEl.textContent = [prefix, chunkState.statusMessage].filter(Boolean).join(" · ");
+  statsEl.textContent = `${version} · ${chunksPart} · ${linesPart} · Saved ${lastSaved} · ${docPart}`;
+}
+
+function ensureDocId() {
+  if (chunkState.docId) return chunkState.docId;
+  const inputId = val("chunkDocId").trim();
+  const resolved = inputId || `doc-${Date.now()}`;
+  chunkState.docId = resolved;
+  const input = qs("chunkDocId");
+  if (input) input.value = resolved;
+  return resolved;
+}
+
+function markDirtyAndScheduleSave() {
+  chunkState.isDirty = true;
+  setStatus("Pending autosave...");
+  scheduleAutosave();
+}
+
+function scheduleAutosave() {
+  if (autosaveTimer) clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(async () => {
+    autosaveTimer = null;
+    if (!chunkState.chunks.length) return;
+    const docId = ensureDocId();
+    if (!docId) return;
+    await finalizeChunks(false, { silent: true, autosave: true });
+  }, AUTOSAVE_DELAY);
 }
 
 function setDocumentText(text) {
@@ -296,6 +354,7 @@ function nudgeBoundary(chunkId, edge, delta) {
 
   chunkState.chunks[idx] = recalcChunkBounds(target);
   normalizeChunks(chunkState.chunks);
+  markDirtyAndScheduleSave();
 }
 
 function findParagraphBoundary(lineNumber, direction) {
@@ -323,6 +382,7 @@ function paragraphAdjust(chunkId, edge, direction) {
   }
   chunkState.chunks[idx] = recalcChunkBounds(chunk);
   normalizeChunks(chunkState.chunks);
+  markDirtyAndScheduleSave();
 }
 
 function mergeWithNeighbor(chunkId, direction) {
@@ -344,6 +404,7 @@ function mergeWithNeighbor(chunkId, direction) {
   chunkState.chunks.splice(Math.min(idx, neighborIdx), 2, merged);
   chunkState.selectedChunkId = merged.chunk_id;
   normalizeChunks(chunkState.chunks);
+  markDirtyAndScheduleSave();
 }
 
 function splitChunk(chunkId) {
@@ -365,6 +426,7 @@ function splitChunk(chunkId) {
   chunkState.chunks.splice(idx, 1, first, second);
   chunkState.selectedChunkId = first.chunk_id;
   normalizeChunks(chunkState.chunks);
+  markDirtyAndScheduleSave();
 }
 
 function selectionLines() {
@@ -419,6 +481,7 @@ function createChunkFromSelection() {
   chunkState.selectedChunkId = newChunk.chunk_id;
   normalizeChunks(updated);
   setStatus(`Created chunk from lines ${startLine}-${endLine}.`);
+  markDirtyAndScheduleSave();
 }
 
 function handleChunkListClick(event) {
@@ -473,12 +536,11 @@ function handleViewportClick(event) {
 }
 
 function updateStats() {
-  const el = qs("chunkStats");
-  if (!el) return;
   const chunkCount = chunkState.chunks.length;
   const lines = chunkState.lines.length || 0;
   const chars = chunkState.text.length || 0;
-  el.textContent = `${chunkCount} chunk(s) · ${lines} line(s) · ${chars} chars${chunkState.docId ? ` · doc ${chunkState.docId}` : ""}`;
+  chunkState.metaStats = { chunkCount, lines, chars };
+  renderStatusBar();
 }
 
 async function detectChunks() {
@@ -526,12 +588,13 @@ async function detectChunks() {
   const resolvedDocId = data.doc_id || docId;
   chunkState.docId = resolvedDocId;
   qs("chunkDocId").value = resolvedDocId;
+  chunkState.version = data.version ?? chunkState.version;
 
   normalizeChunks(chunks || []);
   setStatus(`Detected ${chunks.length || 0} chunk(s). v${data.version || 1} ${data.persisted ? "draft saved" : ""}`.trim());
-  if (typeof window.loadDocLibrary === "function") {
-    window.loadDocLibrary();
-  }
+  chunkState.isDirty = true;
+  renderStatusBar();
+  await finalizeChunks(false, { silent: true, autosave: true });
   toggleChunkSpinner(false);
 }
 
@@ -562,25 +625,36 @@ async function loadDocumentById(docIdOverride = null) {
   qs("chunkDocText").value = text;
   setDocumentText(text);
   normalizeChunks(data.chunks || []);
+  chunkState.version = data.version ?? chunkState.version;
+  chunkState.lastSavedAt = data.updated_at ? new Date(data.updated_at) : new Date();
+  chunkState.isDirty = false;
+  renderStatusBar();
   setStatus(`Loaded doc ${docId}. Finalized: ${data.finalized ? "yes" : "no"} · version ${data.version || 1}.`);
 }
 
-async function finalizeChunks(finalized = true) {
-  if (!chunkState.docId) {
+async function finalizeChunks(finalized = true, options = {}) {
+  const { silent = false, autosave = false } = options;
+  const docId = chunkState.docId || ensureDocId();
+  if (!docId) {
     setStatus("Provide a document ID before saving.");
     return false;
   }
+  chunkState.docId = docId;
   if (!chunkState.chunks.length) {
     setStatus("No chunks to save.");
     return false;
   }
   const payload = {
-    doc_id: chunkState.docId,
+    doc_id: docId,
     text: chunkState.text,
     finalized,
     chunks: chunkState.chunks.map((c) => recalcChunkBounds(c)),
   };
-  setStatus("Saving chunk draft...");
+  if (!silent) {
+    setStatus(finalized ? "Saving finalized chunks..." : "Saving chunk draft...");
+  } else {
+    setStatus("Autosaving draft...");
+  }
   let res;
   try {
     res = await fetch("/api/chunking/finalize", {
@@ -598,7 +672,15 @@ async function finalizeChunks(finalized = true) {
     setStatus(data?.detail || "Failed to save chunk draft.");
     return false;
   }
-  setStatus(`Saved ${payload.chunks.length} chunk(s) · version ${data.version || "?"}. Finalized: ${data.finalized ? "yes" : "no"}.`);
+  if (autosaveTimer) {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+  }
+  chunkState.version = data.version ?? chunkState.version;
+  chunkState.lastSavedAt = new Date();
+  chunkState.isDirty = false;
+  renderStatusBar();
+  setStatus(autosave ? "Draft saved automatically." : `Saved ${payload.chunks.length} chunk(s). Finalized: ${data.finalized ? "yes" : "no"}.`);
   if (typeof window.loadDocLibrary === "function") {
     window.loadDocLibrary();
   }
@@ -608,11 +690,11 @@ async function finalizeChunks(finalized = true) {
 async function embedChunks() {
   const collection = chunkState.collection || "";
   if (!collection) {
-    setStatus("Collection name missing; cannot embed.");
+    setStatus("Collection name missing; cannot index.");
     return false;
   }
   if (!chunkState.chunks.length) {
-    setStatus("No chunks to embed.");
+    setStatus("No chunks to index.");
     return false;
   }
 
@@ -635,7 +717,7 @@ async function embedChunks() {
     })),
   };
 
-  setStatus(`Embedding ${payload.chunks.length} chunk(s) to ${collection}...`);
+  setStatus(`Indexing ${payload.chunks.length} chunk(s) to ${collection}...`);
   let res;
   try {
     res = await fetch(`/api/collections/${encodeURIComponent(collection)}/chunks`, {
@@ -645,15 +727,15 @@ async function embedChunks() {
     });
   } catch (e) {
     console.error("Embed failed", e);
-    setStatus("Network error embedding chunks.");
+    setStatus("Network error indexing chunks.");
     return false;
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    setStatus(data?.detail || "Embedding failed.");
+    setStatus(data?.detail || "Indexing failed.");
     return false;
   }
-  setStatus(`Embedded ${data.upserted || payload.chunks.length} chunk(s) to ${collection}.`);
+  setStatus(`Indexed ${data.upserted || payload.chunks.length} chunk(s) to ${collection}.`);
   return true;
 }
 
@@ -681,6 +763,7 @@ function wireEvents() {
   qs("chunkDocText")?.addEventListener("input", (e) => {
     setDocumentText(e.target.value);
     if (chunkState.chunks.length) normalizeChunks(chunkState.chunks);
+    markDirtyAndScheduleSave();
   });
 }
 
@@ -691,6 +774,7 @@ function initChunkReview() {
   setDocumentText(val("chunkDocText"));
   wireEvents();
   renderVirtualLines();
+  renderStatusBar();
   setStatus("Paste text or load by document ID to begin.");
 }
 
