@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from app.chroma_store import list_collection_names
+from app.domain.collections import list_collection_names
 
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="app/templates")
@@ -20,4 +20,3 @@ def collection_page(name: str, request: Request):
         "collection.html",
         {"request": request, "collection": name},
     )
-

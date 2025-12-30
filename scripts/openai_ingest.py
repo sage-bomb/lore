@@ -9,7 +9,7 @@ import argparse
 import json
 from pathlib import Path
 
-from app.services.openai_ingest import ingest_lore_from_text
+from app.domain.ingestion import ingest_lore_from_text
 
 
 def load_text(path: Path, inline_text: str | None) -> str:

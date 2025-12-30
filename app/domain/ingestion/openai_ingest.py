@@ -3,18 +3,10 @@ import logging
 import os
 from typing import Any, Dict, List
 
-from app.chroma_store import (
-    get_collection,
-    normalize_collection_name,
-    sanitize_metadatas,
-)
-from app.library_store import list_connections, list_things, upsert_connection, upsert_thing
+from app.domain.collections import get_collection, normalize_collection_name, sanitize_metadatas
+from app.domain.library import list_connections, list_things, upsert_connection, upsert_thing
+from app.domain.chunking.orchestrator import annotate_chunks, detect_or_reuse_chunks, derive_doc_id
 from app.schemas import Connection, KNOWN_THING_TYPES, Thing
-from app.services.chunk_orchestrator import (
-    annotate_chunks,
-    detect_or_reuse_chunks,
-    derive_doc_id,
-)
 
 try:
     from openai import OpenAI

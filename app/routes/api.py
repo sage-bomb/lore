@@ -3,7 +3,9 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
-from app.chroma_store import (
+from app.domain.chunking import detect_chunks
+from app.domain.chunking.orchestrator import detect_or_reuse_chunks, derive_doc_id, slugify
+from app.domain.collections import (
     client,
     get_collection,
     list_collection_names,
@@ -11,33 +13,34 @@ from app.chroma_store import (
     sanitize_metadata,
     sanitize_metadatas,
 )
-from app.library_store import (
-    delete_connection, delete_thing,
-    get_connection, get_thing,
-    list_connections, list_things,
-    upsert_connection, upsert_thing,
+from app.domain.chunks import get_chunks, list_docs, store_chunks
+from app.domain.ingestion import ingest_lore_from_text, ingest_text
+from app.domain.library import (
+    delete_connection,
+    delete_thing,
+    get_connection,
+    get_thing,
+    list_connections,
+    list_things,
+    upsert_connection,
+    upsert_thing,
 )
-from app.chunk_store import get_chunks, list_docs, store_chunks
 from app.schemas import (
+    ChunkDetectionRequest,
+    ChunkFinalizeRequest,
+    ChunkMetadata,
     ChunkOut,
     ChunkUpdate,
     ChunksUpsert,
     CollectionCreate,
     CollectionInfo,
     Connection,
-    ChunkDetectionRequest,
-    ChunkFinalizeRequest,
-    ChunkMetadata,
     OpenAIIngestRequest,
     OpenAIIngestResponse,
     QueryHit,
     QueryRequest,
     Thing,
 )
-from app.ingest import ingest_text
-from app.services.chunk_orchestrator import detect_or_reuse_chunks, derive_doc_id, slugify
-from app.services.chunking import detect_chunks
-from app.services.openai_ingest import ingest_lore_from_text
 from app.upload_store import describe_upload, extract_text_from_bytes, save_upload
 
 router = APIRouter(prefix="/api", tags=["api"])

@@ -4,9 +4,9 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 
-from app.chroma_store import _embed_fn
+from app.domain.chunking.core import chunk_document, default_boundary_score, hash_chunk_id
+from app.domain.collections import embedding_function
 from app.schemas import ChunkDetectionRequest, ChunkMetadata
-from app.services.chunking_core import chunk_document, default_boundary_score, hash_chunk_id
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ def _make_meta_chunk(doc_id: str, text: str, summary: Dict[str, Any]) -> ChunkMe
         start_line=0,
         end_line=0,
         length_chars=len(summary_text),
-        length_lines=max(1, summary_text.count(\"\\n\") + 1) if summary_text else 0,
+        length_lines=max(1, summary_text.count("\n") + 1) if summary_text else 0,
         boundary_reasons=["document meta"],
         confidence=1.0,
         overlap=0,
@@ -139,7 +139,7 @@ def detect_chunks(payload: ChunkDetectionRequest) -> List[ChunkMetadata]:
         payload.target_chars,
         payload.max_chars,
         overlap=payload.overlap,
-        embed_fn=_embed_fn,
+        embed_fn=embedding_function(),
         break_detector=default_boundary_score,
     )
 
