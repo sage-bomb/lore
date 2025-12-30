@@ -1,3 +1,10 @@
+"""Public JSON API routes for Spellbinder.
+
+These handlers translate HTTP requests into domain-layer calls and return
+validated responses for the UI and API consumers. Keep the logic thin and
+delegate to domain modules for data access and processing.
+"""
+
 import os
 from typing import Any, Dict, List, Optional
 
@@ -49,13 +56,14 @@ router = APIRouter(prefix="/api", tags=["api"])
 # ---------------- Helpers ----------------
 
 def _merge_where(base: Optional[Dict[str, Any]], extra: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """Merge two Chroma 'where' clauses using $and."""
+    """Merge two Chroma `where` clauses using an `$and` conjunction."""
     if base and extra:
         return {"$and": [base, extra]}
     return base or extra
 
 
 def _apply_in_filter(where: Optional[Dict[str, Any]], field: str, values: Optional[List[str]]) -> Optional[Dict[str, Any]]:
+    """Apply an `$in` filter for the given field if one or more values are present."""
     if not values:
         return where
     if len(values) == 1:
@@ -66,6 +74,7 @@ def _apply_in_filter(where: Optional[Dict[str, Any]], field: str, values: Option
 
 
 def _coerce_int(value: Optional[str]) -> Optional[int]:
+    """Convert optional string query params to integers, returning None on failure."""
     try:
         return int(value) if value is not None else None
     except (TypeError, ValueError):
@@ -76,11 +85,13 @@ def _coerce_int(value: Optional[str]) -> Optional[int]:
 
 @router.get("/collections", response_model=List[CollectionInfo])
 def collections_list():
+    """List available Chroma collections by name."""
     return [{"name": n} for n in list_collection_names()]
 
 
 @router.post("/collections", response_model=CollectionInfo)
 def collections_create(payload: CollectionCreate):
+    """Create or return an existing Chroma collection with a normalized name."""
     try:
         safe_name = normalize_collection_name(payload.name)
     except ValueError as exc:
@@ -91,6 +102,7 @@ def collections_create(payload: CollectionCreate):
 
 @router.get("/collections/{name}", response_model=CollectionInfo)
 def collections_get(name: str):
+    """Fetch collection metadata for the provided name, returning 404 when missing."""
     try:
         safe_name = normalize_collection_name(name)
     except ValueError as exc:
@@ -103,6 +115,7 @@ def collections_get(name: str):
 
 @router.delete("/collections/{name}")
 def collections_delete(name: str):
+    """Delete a collection when it exists; reject invalid names or missing resources."""
     try:
         safe_name = normalize_collection_name(name)
     except ValueError as exc:
@@ -118,6 +131,7 @@ def collections_delete(name: str):
 
 @router.post("/ingest/openai", response_model=OpenAIIngestResponse)
 def ingest_openai(payload: OpenAIIngestRequest):
+    """Run the OpenAI-backed ingestion pipeline and return extracted lore + chunk draft info."""
     try:
         source = {"url": payload.url} if payload.url else None
         result = ingest_lore_from_text(payload.text, payload.collection, payload.notes, source=source)
@@ -134,6 +148,7 @@ async def ingest_upload(
     notes: Optional[str] = Form(default=None),
     files: List[UploadFile] = File(...),
 ):
+    """Accept uploaded files, extract text, run ingestion, and summarize results per file."""
     safe_collection = normalize_collection_name(collection)
     if not files:
         raise HTTPException(status_code=400, detail="At least one file is required.")
@@ -201,12 +216,14 @@ async def ingest_upload(
 
 @router.post("/things", response_model=Thing)
 def things_upsert(payload: Thing):
+    """Create or update a lore Thing and return the stored record."""
     stored = upsert_thing(payload)
     return stored
 
 
 @router.get("/things/{thing_id}", response_model=Thing)
 def things_get(thing_id: str):
+    """Retrieve a Thing by ID or return 404 when absent."""
     got = get_thing(thing_id)
     if not got:
         raise HTTPException(status_code=404, detail="Thing not found")
@@ -219,11 +236,13 @@ def things_list(
     tag: Optional[str] = Query(default=None, description="Filter by tag"),
     q: Optional[str] = Query(default=None, description="Simple substring match across name/aliases/summary/description"),
 ):
+    """List Things with optional filters for type, tag, or free-text search."""
     return list_things(thing_type=thing_type, tag=tag, q=q)
 
 
 @router.delete("/things/{thing_id}")
 def things_delete(thing_id: str):
+    """Delete a Thing and surface a 404 when no record is removed."""
     removed = delete_thing(thing_id)
     if not removed:
         raise HTTPException(status_code=404, detail="Thing not found")
@@ -234,12 +253,14 @@ def things_delete(thing_id: str):
 
 @router.post("/connections", response_model=Connection)
 def connections_upsert(payload: Connection):
+    """Create or update a connection edge and return the stored record."""
     stored = upsert_connection(payload)
     return stored
 
 
 @router.get("/connections/{edge_id}", response_model=Connection)
 def connections_get(edge_id: str):
+    """Retrieve a connection by ID or raise 404 if missing."""
     got = get_connection(edge_id)
     if not got:
         raise HTTPException(status_code=404, detail="Connection not found")
@@ -250,11 +271,13 @@ def connections_get(edge_id: str):
 def connections_list(
     thing_id: Optional[str] = Query(default=None, description="Return connections involving the thing_id"),
 ):
+    """List connections, optionally filtering by an involved Thing ID."""
     return list_connections(thing_id=thing_id)
 
 
 @router.delete("/connections/{edge_id}")
 def connections_delete(edge_id: str):
+    """Delete a connection and surface a 404 when the record does not exist."""
     removed = delete_connection(edge_id)
     if not removed:
         raise HTTPException(status_code=404, detail="Connection not found")
@@ -265,6 +288,7 @@ def connections_delete(edge_id: str):
 
 @router.post("/collections/{name}/chunks")
 def chunks_upsert(name: str, payload: ChunksUpsert):
+    """Store or update chunks for a collection, flattening metadata for Chroma compatibility."""
     col = get_collection(name)
 
     ids = [c.chunk_id for c in payload.chunks]
@@ -303,6 +327,7 @@ def chunks_upsert(name: str, payload: ChunksUpsert):
 
 @router.get("/collections/{name}/chunks/{chunk_id}", response_model=ChunkOut)
 def chunks_get(name: str, chunk_id: str):
+    """Return a single chunk's text and metadata from a collection."""
     col = get_collection(name)
     got = col.get(ids=[chunk_id])
 
@@ -318,6 +343,7 @@ def chunks_get(name: str, chunk_id: str):
 
 @router.put("/collections/{name}/chunks/{chunk_id}")
 def chunks_update(name: str, chunk_id: str, payload: ChunkUpdate):
+    """Update a stored chunk's text and/or metadata; reject empty payloads."""
     if payload.text is None and payload.metadata is None:
         raise HTTPException(status_code=400, detail="Nothing to update")
 
@@ -340,6 +366,7 @@ def chunks_update(name: str, chunk_id: str, payload: ChunkUpdate):
 
 @router.delete("/collections/{name}/chunks/{chunk_id}")
 def chunks_delete(name: str, chunk_id: str):
+    """Remove a chunk from a collection by ID."""
     col = get_collection(name)
     col.delete(ids=[chunk_id])
     return {"ok": True, "deleted": chunk_id, "collection": name}
@@ -347,6 +374,7 @@ def chunks_delete(name: str, chunk_id: str):
 
 @router.get("/collections/{name}/chunks")
 def chunks_list(name: str, limit: int = 25):
+    """List up to `limit` chunks from a collection in insertion order."""
     col = get_collection(name)
     limit = max(1, min(int(limit), 200))
     got = col.get(limit=limit)
@@ -369,6 +397,7 @@ def chunks_list(name: str, limit: int = 25):
 
 @router.post("/collections/{name}/query", response_model=List[QueryHit])
 def chunks_query(name: str, payload: QueryRequest):
+    """Perform a semantic query with optional metadata filters against a collection."""
     col = get_collection(name)
 
     where = payload.where
@@ -406,6 +435,7 @@ def chunks_query(name: str, payload: QueryRequest):
 
 @router.post("/ingest")
 def ingest_api(payload: Dict[str, Any]):
+    """Legacy ingestion endpoint that delegates to the OpenIP pipeline and stores results."""
     collection = payload.get("collection")
     text = payload.get("text") or ""
     if not text.strip():
@@ -444,6 +474,7 @@ async def chunking_upload(
     max_chars: Optional[str] = Form(default=None),
     overlap: Optional[str] = Form(default=None),
 ):
+    """Upload one or more files and run chunk detection with optional parameter overrides."""
     if not files:
         raise HTTPException(status_code=400, detail="At least one file is required.")
 
@@ -536,6 +567,7 @@ async def chunking_upload(
 
 @router.post("/chunking/detect")
 def chunking_detect(payload: ChunkDetectionRequest, persist: bool = Query(default=False, description="Store detected chunks as a draft")):
+    """Detect chunks for provided text; optionally persist the draft state to disk."""
     chunks = detect_chunks(payload)
     if persist:
         version, finalized = store_chunks(payload.doc_id, chunks, finalized=False, text=payload.text)
@@ -559,6 +591,7 @@ def chunking_detect(payload: ChunkDetectionRequest, persist: bool = Query(defaul
 
 @router.post("/chunking/finalize")
 def chunking_finalize(payload: ChunkFinalizeRequest):
+    """Persist finalized chunk sets for a document, ensuring doc_id consistency."""
     if any(c.doc_id != payload.doc_id for c in payload.chunks):
         raise HTTPException(status_code=400, detail="All chunks must share the doc_id provided.")
     version, finalized = store_chunks(payload.doc_id, payload.chunks, finalized=payload.finalized, text=payload.text)
@@ -573,6 +606,7 @@ def chunking_finalize(payload: ChunkFinalizeRequest):
 
 @router.get("/chunking/documents/{doc_id}")
 def chunking_document(doc_id: str):
+    """Fetch chunk state for a specific document by ID."""
     doc = get_chunks(doc_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -581,6 +615,7 @@ def chunking_document(doc_id: str):
 
 @router.get("/chunking/documents")
 def chunking_document_list(limit: int = 100):
+    """List stored chunk documents ordered by most recent update."""
     return list_docs(limit=limit)
 
 
@@ -590,20 +625,25 @@ def chunking_document_list(limit: int = 100):
 
 @router.post("/collections/{name}/documents")
 def documents_upsert(name: str, payload: ChunksUpsert):
+    """Back-compat: delegate document upsert calls to chunk storage."""
     return chunks_upsert(name, payload)
 
 @router.get("/collections/{name}/documents/{doc_id}", response_model=ChunkOut)
 def documents_get(name: str, doc_id: str):
+    """Back-compat: fetch a document via the chunk retrieval endpoint."""
     return chunks_get(name, doc_id)
 
 @router.put("/collections/{name}/documents/{doc_id}")
 def documents_update(name: str, doc_id: str, payload: ChunkUpdate):
+    """Back-compat: update a document using the chunk update logic."""
     return chunks_update(name, doc_id, payload)
 
 @router.delete("/collections/{name}/documents/{doc_id}")
 def documents_delete(name: str, doc_id: str):
+    """Back-compat: delete a document by delegating to chunk deletion."""
     return chunks_delete(name, doc_id)
 
 @router.get("/collections/{name}/documents")
 def documents_list(name: str, limit: int = 25):
+    """Back-compat: list documents via the chunk listing endpoint."""
     return chunks_list(name, limit=limit)

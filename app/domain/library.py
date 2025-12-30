@@ -1,3 +1,5 @@
+"""File-backed persistence for Things and Connections."""
+
 import json
 import os
 from datetime import datetime, timezone
@@ -19,6 +21,7 @@ def _ensure_parent_dir(path: str) -> None:
 
 
 def load_library() -> Dict[str, Dict[str, dict]]:
+    """Load the library state from disk, falling back to an empty structure on error."""
     if not os.path.exists(LIBRARY_PATH):
         return _default_state()
     try:
@@ -30,6 +33,7 @@ def load_library() -> Dict[str, Dict[str, dict]]:
 
 
 def save_library(data: Dict[str, Dict[str, dict]]) -> None:
+    """Persist the library structure to disk, creating parent directories as needed."""
     _ensure_parent_dir(LIBRARY_PATH)
     with open(LIBRARY_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -38,6 +42,7 @@ def save_library(data: Dict[str, Dict[str, dict]]) -> None:
 # ---------------- Things ----------------
 
 def upsert_thing(thing: Thing) -> Thing:
+    """Insert or replace a Thing while preserving original creation timestamps."""
     data = load_library()
     existing_raw = data.get("things", {}).get(thing.thing_id)
     existing = Thing.model_validate(existing_raw) if existing_raw else None
@@ -51,6 +56,7 @@ def upsert_thing(thing: Thing) -> Thing:
 
 
 def get_thing(thing_id: str) -> Optional[Thing]:
+    """Return a Thing by ID, or None when missing."""
     data = load_library()
     raw = data.get("things", {}).get(thing_id)
     if not raw:
@@ -59,6 +65,7 @@ def get_thing(thing_id: str) -> Optional[Thing]:
 
 
 def list_things(thing_type: Optional[str] = None, tag: Optional[str] = None, q: Optional[str] = None) -> List[Thing]:
+    """List Things with optional filtering by type, tag, or simple substring search."""
     data = load_library()
     things: List[Thing] = []
     for raw in data.get("things", {}).values():
@@ -76,6 +83,7 @@ def list_things(thing_type: Optional[str] = None, tag: Optional[str] = None, q: 
 
 
 def delete_thing(thing_id: str) -> bool:
+    """Delete a Thing by ID, returning True when removed."""
     data = load_library()
     removed = bool(data.get("things", {}).pop(thing_id, None))
     if removed:
@@ -86,6 +94,7 @@ def delete_thing(thing_id: str) -> bool:
 # ---------------- Connections ----------------
 
 def upsert_connection(edge: Connection) -> Connection:
+    """Insert or replace a Connection while preserving original creation timestamps."""
     data = load_library()
     existing_raw = data.get("connections", {}).get(edge.edge_id)
     existing = Connection.model_validate(existing_raw) if existing_raw else None
@@ -99,6 +108,7 @@ def upsert_connection(edge: Connection) -> Connection:
 
 
 def get_connection(edge_id: str) -> Optional[Connection]:
+    """Return a Connection by ID, or None when missing."""
     data = load_library()
     raw = data.get("connections", {}).get(edge_id)
     if not raw:
@@ -107,6 +117,7 @@ def get_connection(edge_id: str) -> Optional[Connection]:
 
 
 def list_connections(thing_id: Optional[str] = None) -> List[Connection]:
+    """List connections, optionally filtering by a participating Thing ID."""
     data = load_library()
     edges: List[Connection] = []
     for raw in data.get("connections", {}).values():
@@ -118,6 +129,7 @@ def list_connections(thing_id: Optional[str] = None) -> List[Connection]:
 
 
 def delete_connection(edge_id: str) -> bool:
+    """Delete a Connection by ID, returning True when removed."""
     data = load_library()
     removed = bool(data.get("connections", {}).pop(edge_id, None))
     if removed:

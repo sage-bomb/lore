@@ -1,3 +1,5 @@
+"""Utilities for persisting uploads and extracting text content."""
+
 import os
 import uuid
 from typing import Dict, Optional
@@ -9,12 +11,14 @@ UPLOADS_ROOT = os.getenv("UPLOADS_ROOT", "./uploads")
 
 
 def _ensure_root() -> str:
+    """Create the upload root directory if needed and return its absolute path."""
     root = os.path.abspath(UPLOADS_ROOT)
     os.makedirs(root, exist_ok=True)
     return root
 
 
 def save_upload(file: UploadFile, data: bytes) -> Dict[str, str]:
+    """Persist an uploaded file to a unique directory and return its metadata."""
     root = _ensure_root()
     file_id = uuid.uuid4().hex
     safe_name = os.path.basename(file.filename or "upload")
@@ -43,6 +47,7 @@ def extract_text_from_bytes(data: bytes) -> str:
 
 
 def describe_upload(record: Dict[str, str], size_bytes: Optional[int]) -> Dict[str, str]:
+    """Return a user-facing description of an upload including size when available."""
     out = dict(record)
     if size_bytes is not None:
         out["size_bytes"] = size_bytes

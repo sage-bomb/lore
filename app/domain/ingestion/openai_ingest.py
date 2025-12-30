@@ -1,3 +1,5 @@
+"""OpenAI-powered ingestion pipeline for extracting lore and chunk drafts."""
+
 import json
 import logging
 import os

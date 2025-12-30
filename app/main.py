@@ -1,3 +1,10 @@
+"""FastAPI app wiring for Spellbinder.
+
+This module owns the public ASGI `app` instance and the router wiring. It also
+ensures static and upload directories exist so deployments fail fast when the
+filesystem layout is incorrect.
+"""
+
 import logging
 import os
 
@@ -10,6 +17,11 @@ from app.routes.pages import router as pages_router
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="Spellbinder: Chroma Demo")
+
+
+def create_application() -> FastAPI:
+    """Return the configured FastAPI app for external servers/importers."""
+    return app
 
 # Static files (JS/CSS)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

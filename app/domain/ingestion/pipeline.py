@@ -1,3 +1,5 @@
+"""OpenIP-based ingestion pipeline that extracts lore and generates chunks."""
+
 import itertools
 import re
 import uuid
@@ -243,6 +245,7 @@ def ingest_text(
     source_file: Optional[str] = None,
     source_section: Optional[str] = None,
 ):
+    """Ingest raw text via OpenIP, reconcile entities, and produce search-ready chunks."""
     extracted = extract_lore(text)
 
     raw_things = extracted.get("things") or []
