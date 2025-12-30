@@ -1,3 +1,5 @@
+"""Chunk detection orchestration and reuse helpers."""
+
 import hashlib
 import logging
 import re
@@ -28,6 +30,7 @@ def derive_doc_id(
     text: str,
     collection: str,
 ) -> str:
+    """Derive a stable doc_id from explicit hints, upload metadata, or a text hash."""
     candidates = [explicit_doc_id]
     if source:
         candidates.extend([source.get("url"), source.get("filename"), source.get("file_id")])
@@ -50,6 +53,7 @@ def detect_or_reuse_chunks(
     filename: Optional[str] = None,
     url: Optional[str] = None,
 ) -> Dict[str, Any]:
+    """Return stored chunks for a document when present, otherwise run detection and persist the draft."""
     existing = get_chunks(doc_id)
     if existing:
         logger.info(
@@ -112,6 +116,7 @@ def annotate_chunks(
     *,
     chunk_kind: str = "chapter_text",
 ) -> Dict[str, List[Any]]:
+    """Prepare chunks for Chroma upsert by merging base metadata and resolving defaults."""
     ids: List[str] = []
     documents: List[str] = []
     metadatas: List[Dict[str, Any]] = []

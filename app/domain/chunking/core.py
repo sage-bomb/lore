@@ -1,3 +1,5 @@
+"""Core chunk segmentation primitives: block parsing, embedding, and boundary scoring."""
+
 import hashlib
 import logging
 import math

@@ -1,3 +1,5 @@
+"""Chroma collection utilities and metadata sanitization helpers."""
+
 import json
 import os
 import re
@@ -15,6 +17,7 @@ _NAME_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]{1,510}[A-Za-z0-9])?$"
 _ALLOWED_META_TYPES = (str, int, float, bool, bytes, bytearray, type(None))
 
 def client() -> chromadb.ClientAPI:
+    """Return the shared Chroma client instance."""
     return _client
 
 def embedding_function() -> SentenceTransformerEmbeddingFunction:
@@ -25,6 +28,7 @@ def embedding_function() -> SentenceTransformerEmbeddingFunction:
     return _embed_fn
 
 def normalize_collection_name(raw: str) -> str:
+    """Normalize, validate, and sanitize external collection names for Chroma."""
     name = (raw or "").strip()
     if not name:
         raise ValueError("Collection name cannot be empty.")
@@ -36,6 +40,7 @@ def normalize_collection_name(raw: str) -> str:
     return name
 
 def get_collection(name: str):
+    """Fetch or create a Chroma collection with the configured embedding function."""
     safe = normalize_collection_name(name)
     # Chroma collections need the embedding_function supplied at access time
     return _client.get_or_create_collection(
@@ -45,6 +50,7 @@ def get_collection(name: str):
     )
 
 def list_collection_names() -> list[str]:
+    """Return sorted collection names for display and validation."""
     cols = _client.list_collections()
     # different chroma versions return objects with .name
     return sorted([c.name for c in cols])
@@ -75,4 +81,5 @@ def sanitize_metadata(meta: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def sanitize_metadatas(metas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Apply `sanitize_metadata` across a list of metadata entries."""
     return [sanitize_metadata(m) for m in metas]

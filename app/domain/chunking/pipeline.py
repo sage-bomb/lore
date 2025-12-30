@@ -1,3 +1,5 @@
+"""Chunk detection pipeline with optional OpenAI-driven enrichment."""
+
 import importlib
 import json
 import logging

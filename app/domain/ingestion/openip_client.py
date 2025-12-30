@@ -1,3 +1,5 @@
+"""Lightweight HTTP client for the OpenIP lore extraction API."""
+
 import os
 from typing import Any, Dict
 
@@ -24,6 +26,7 @@ def _build_url() -> str:
 
 
 def extract_lore(text: str) -> Dict[str, Any]:
+    """Call the OpenIP endpoint to extract lore data from raw text."""
     if not text or not text.strip():
         raise ValueError("text must be a non-empty string")
 
@@ -38,4 +41,3 @@ def extract_lore(text: str) -> Dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError("OpenIP response must be a JSON object")
     return data
-

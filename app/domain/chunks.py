@@ -1,3 +1,5 @@
+"""Disk-backed persistence for detected chunk sets."""
+
 import json
 import os
 from datetime import datetime, timezone
@@ -19,6 +21,7 @@ def _ensure_parent_dir(path: str) -> None:
 
 
 def load_chunk_store() -> Dict[str, dict]:
+    """Load chunk state from disk, defaulting to an empty structure when missing or invalid."""
     if not os.path.exists(CHUNK_STORE_PATH):
         return _default_state()
     try:
@@ -29,6 +32,7 @@ def load_chunk_store() -> Dict[str, dict]:
 
 
 def save_chunk_store(data: Dict[str, dict]) -> None:
+    """Persist chunk state to disk, creating directories when necessary."""
     _ensure_parent_dir(CHUNK_STORE_PATH)
     with open(CHUNK_STORE_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -42,6 +46,7 @@ def store_chunks(
     filename: Optional[str] = None,
     url: Optional[str] = None,
 ) -> Tuple[int, bool]:
+    """Persist a set of chunks for a document and bump the stored version counter."""
     data = load_chunk_store()
     docs = data.setdefault("docs", {})
     existing = docs.get(doc_id, {})
@@ -61,6 +66,7 @@ def store_chunks(
 
 
 def get_chunks(doc_id: str) -> Optional[dict]:
+    """Retrieve stored chunk metadata for a document, or None if absent."""
     data = load_chunk_store()
     doc = data.get("docs", {}).get(doc_id)
     if not doc:
@@ -78,6 +84,7 @@ def get_chunks(doc_id: str) -> Optional[dict]:
 
 
 def list_docs(limit: int = 100) -> list[dict]:
+    """Return a summary list of stored documents ordered by most recent update."""
     data = load_chunk_store()
     docs = data.get("docs", {})
     items: list[dict] = []
