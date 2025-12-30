@@ -3,9 +3,9 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from app.chunk_store import get_chunks, store_chunks
+from app.domain.chunks import get_chunks, store_chunks
+from app.domain.chunking.pipeline import detect_chunks
 from app.schemas import ChunkDetectionRequest, ChunkMetadata
-from app.services.chunking import detect_chunks
 
 logger = logging.getLogger(__name__)
 

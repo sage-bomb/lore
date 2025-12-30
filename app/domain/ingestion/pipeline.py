@@ -3,10 +3,10 @@ import re
 import uuid
 from typing import Dict, List, Optional, Tuple, get_args
 
-from app import library_store
-from app.openip_client import extract_lore
+from app.domain import library
+from app.domain.chunking.orchestrator import derive_doc_id, detect_or_reuse_chunks
+from app.domain.ingestion.openip_client import extract_lore
 from app.schemas import ChunkKind, ChunkMetadata, Connection, SearchChunk, Thing
-from app.services.chunk_orchestrator import derive_doc_id, detect_or_reuse_chunks
 
 CHUNK_KIND_OPTIONS = set(get_args(ChunkKind))
 
@@ -217,7 +217,7 @@ def _chunk_meta_to_search_chunk(
 
 
 def _reconcile_items(things: List[Thing], connections: List[Connection]) -> Tuple[List[Thing], List[Connection]]:
-    existing_things = library_store.list_things()
+    existing_things = library.list_things()
     existing_by_id = {t.thing_id: t for t in existing_things}
     existing_by_name = _existing_lookup(existing_things)
 
@@ -225,7 +225,7 @@ def _reconcile_items(things: List[Thing], connections: List[Connection]) -> Tupl
     for thing in things:
         reconciled_things.append(_reconcile_thing(thing, existing_by_id, existing_by_name))
 
-    existing_edges = {c.edge_id: c for c in library_store.list_connections()}
+    existing_edges = {c.edge_id: c for c in library.list_connections()}
     reconciled_connections: List[Connection] = []
     for conn in connections:
         existing = existing_edges.get(conn.edge_id)

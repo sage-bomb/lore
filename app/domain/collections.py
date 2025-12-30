@@ -17,6 +17,13 @@ _ALLOWED_META_TYPES = (str, int, float, bool, bytes, bytearray, type(None))
 def client() -> chromadb.ClientAPI:
     return _client
 
+def embedding_function() -> SentenceTransformerEmbeddingFunction:
+    """
+    Expose the configured embedding function so chunking logic can depend on the
+    data layer without importing web-facing modules.
+    """
+    return _embed_fn
+
 def normalize_collection_name(raw: str) -> str:
     name = (raw or "").strip()
     if not name:
